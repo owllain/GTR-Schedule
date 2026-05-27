@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { generateSchedule, type StaffInfo, type NovedadInfo } from '@/lib/schedule-generator';
+import { generateSchedule, type StaffInfo, type NovedadInfo, type ProformaEntryInfo } from '@/lib/schedule-generator';
 
 // POST generate schedule for a given month
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { year, month } = body;
+    const { year, month, useBlankEntries } = body;
 
     if (!year || !month) {
       return NextResponse.json({ error: 'Year and month are required' }, { status: 400 });
@@ -15,9 +15,12 @@ export async function POST(request: NextRequest) {
     const yearNum = parseInt(year);
     const monthNum = parseInt(month);
 
-    // Get all active staff
-    const staffRecords = await db.staff.findMany({ where: { activo: true } });
-    
+    // Get all active staff with their proformas
+    const staffRecords = await db.staff.findMany({
+      where: { activo: true },
+      include: { proforma: { include: { entradas: true } } },
+    });
+
     if (staffRecords.length === 0) {
       return NextResponse.json({ error: 'No hay personal activo registrado' }, { status: 400 });
     }
@@ -41,14 +44,14 @@ export async function POST(request: NextRequest) {
       id: s.id,
       nombre: s.nombre,
       apellido: s.apellido,
-      jornadaPreferente: s.jornadaPreferente as StaffInfo['jornadaPreferente'],
       finDeSemanaPreferente: s.finDeSemanaPreferente as StaffInfo['finDeSemanaPreferente'],
-      horaEntrada: s.horaEntrada,
-      horaSalida: s.horaSalida,
-      horaEntradaSabado: s.horaEntradaSabado,
-      horaSalidaSabado: s.horaSalidaSabado,
-      horaEntradaDomingo: s.horaEntradaDomingo,
-      horaSalidaDomingo: s.horaSalidaDomingo,
+      proformaId: s.proformaId,
+      proformaEntries: s.proforma?.entradas.map(pe => ({
+        diaSemana: pe.diaSemana,
+        horaEntrada: pe.horaEntrada,
+        horaSalida: pe.horaSalida,
+        esDescanso: pe.esDescanso,
+      })) as ProformaEntryInfo[] | undefined,
     }));
 
     const novedadInfo: NovedadInfo[] = novedadRecords.map(n => ({
@@ -59,8 +62,9 @@ export async function POST(request: NextRequest) {
       description: n.description || undefined,
     }));
 
-    // Generate schedule entries
-    const entries = generateSchedule(staffInfo, yearNum, monthNum, novedadInfo);
+    // Generate schedule entries (blank by default, or with proforma times if assigned)
+    const shouldUseBlank = useBlankEntries !== false; // default to blank
+    const entries = generateSchedule(staffInfo, yearNum, monthNum, novedadInfo, shouldUseBlank);
 
     // Delete existing entries for this month (regenerate)
     await db.scheduleEntry.deleteMany({
@@ -84,7 +88,7 @@ export async function POST(request: NextRequest) {
       })),
     });
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       message: `Horario generado exitosamente para ${yearNum}-${String(monthNum).padStart(2, '0')}`,
       entriesCreated: created.count,
     });

@@ -7,6 +7,7 @@ export async function GET() {
     const staff = await db.staff.findMany({
       where: { activo: true },
       orderBy: [{ apellido: 'asc' }, { nombre: 'asc' }],
+      include: { proforma: { include: { entradas: true } } },
     });
     return NextResponse.json(staff);
   } catch (error) {
@@ -19,33 +20,20 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { nombre, apellido, jornadaPreferente, finDeSemanaPreferente, horaEntrada, horaSalida, horaEntradaSabado, horaSalidaSabado, horaEntradaDomingo, horaSalidaDomingo } = body;
+    const { nombre, apellido, finDeSemanaPreferente, proformaId } = body;
 
     if (!nombre || !apellido) {
       return NextResponse.json({ error: 'Nombre y apellido son requeridos' }, { status: 400 });
-    }
-
-    // Set default times based on jornada if not provided
-    let defaults = { entry: '08:00', exit: '17:00', satEntry: '08:00', satExit: '13:00', sunEntry: '08:00', sunExit: '18:00' };
-    if (jornadaPreferente === 'NOCTURNA') {
-      defaults = { entry: '18:00', exit: '00:00', satEntry: '18:00', satExit: '00:00', sunEntry: '18:00', sunExit: '00:00' };
-    } else if (jornadaPreferente === 'MIXTA') {
-      defaults = { entry: '08:00', exit: '17:36', satEntry: '08:00', satExit: '13:00', sunEntry: '08:00', sunExit: '18:00' };
     }
 
     const staff = await db.staff.create({
       data: {
         nombre,
         apellido,
-        jornadaPreferente: jornadaPreferente || 'DIURNA',
         finDeSemanaPreferente: finDeSemanaPreferente || 'MIXTO',
-        horaEntrada: horaEntrada || defaults.entry,
-        horaSalida: horaSalida || defaults.exit,
-        horaEntradaSabado: horaEntradaSabado || defaults.satEntry,
-        horaSalidaSabado: horaSalidaSabado || defaults.satExit,
-        horaEntradaDomingo: horaEntradaDomingo || defaults.sunEntry,
-        horaSalidaDomingo: horaSalidaDomingo || defaults.sunExit,
+        proformaId: (proformaId && proformaId !== 'NONE') ? proformaId : null,
       },
+      include: { proforma: { include: { entradas: true } } },
     });
 
     return NextResponse.json(staff, { status: 201 });
@@ -65,9 +53,15 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'ID es requerido' }, { status: 400 });
     }
 
+    // Handle proformaId "NONE" -> null
+    if (data.proformaId === 'NONE' || data.proformaId === '') {
+      data.proformaId = null;
+    }
+
     const staff = await db.staff.update({
       where: { id },
       data,
+      include: { proforma: { include: { entradas: true } } },
     });
 
     return NextResponse.json(staff);

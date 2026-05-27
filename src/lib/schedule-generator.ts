@@ -1,8 +1,10 @@
 // Schedule generation logic following Costa Rica labor law
-// Diurna: 48 hrs/week, Mixta: 42 hrs/week, Nocturna: 36 hrs/week
-// Key rule: Staff who work weekends get compensatory days off during the week
+// Standard: 48 hrs/week (Diurna)
+// Weekend day (Sat or Sun) = 10 hours by default
+// When working a weekend day: 10h weekend + 38h L-V = 7.6h/day (7h36m) L-V
+// When NOT working weekends: 48h L-V = 9.6h/day (9h36m) L-V
+// Rule: If works Saturday, doesn't work Sunday, and vice versa
 
-export type JornadaType = 'DIURNA' | 'MIXTA' | 'NOCTURNA';
 export type FinDeSemanaType = 'MIXTO' | 'SABADO' | 'DOMINGO';
 export type EntryType = 'NORMAL' | 'VACACION' | 'INCAPACIDAD' | 'LICENCIA' | 'PERMISO' | 'FERIADO' | 'DESCANSO';
 
@@ -10,14 +12,16 @@ export interface StaffInfo {
   id: string;
   nombre: string;
   apellido: string;
-  jornadaPreferente: JornadaType;
   finDeSemanaPreferente: FinDeSemanaType;
+  proformaId: string | null;
+  proformaEntries?: ProformaEntryInfo[];
+}
+
+export interface ProformaEntryInfo {
+  diaSemana: number; // 0=Dom, 1=Lun, ..., 6=Sab
   horaEntrada: string;
   horaSalida: string;
-  horaEntradaSabado: string;
-  horaSalidaSabado: string;
-  horaEntradaDomingo: string;
-  horaSalidaDomingo: string;
+  esDescanso: boolean;
 }
 
 export interface NovedadInfo {
@@ -45,64 +49,23 @@ export function calculateHours(entryTime: string, exitTime: string): number {
   if (!entryTime || !exitTime) return 0;
   const [entryH, entryM] = entryTime.split(':').map(Number);
   const [exitH, exitM] = exitTime.split(':').map(Number);
-  
+
   let entryMinutes = entryH * 60 + entryM;
   let exitMinutes = exitH * 60 + exitM;
-  
+
   // Handle overnight shifts (e.g., 18:00 - 00:00)
   if (exitMinutes <= entryMinutes) {
     exitMinutes += 24 * 60;
   }
-  
+
   return (exitMinutes - entryMinutes) / 60;
 }
 
-// Get the target weekly hours based on jornada type
-export function getWeeklyTargetHours(jornada: JornadaType): number {
-  switch (jornada) {
-    case 'DIURNA': return 48;
-    case 'MIXTA': return 42;
-    case 'NOCTURNA': return 36;
-    default: return 48;
-  }
-}
+// Standard weekly hours target
+export const WEEKLY_TARGET_HOURS = 48;
 
-// Get default shift times for a jornada type
-export function getDefaultShiftTimes(jornada: JornadaType) {
-  switch (jornada) {
-    case 'DIURNA':
-      return { weekday: { entry: '08:00', exit: '17:36' }, saturday: { entry: '08:00', exit: '13:00' }, sunday: { entry: '08:00', exit: '18:00' } };
-    case 'MIXTA':
-      return { weekday: { entry: '08:00', exit: '16:48' }, saturday: { entry: '08:00', exit: '13:00' }, sunday: { entry: '08:00', exit: '18:00' } };
-    case 'NOCTURNA':
-      return { weekday: { entry: '18:00', exit: '00:00' }, saturday: { entry: '18:00', exit: '00:00' }, sunday: { entry: '18:00', exit: '00:00' } };
-    default:
-      return { weekday: { entry: '08:00', exit: '17:36' }, saturday: { entry: '08:00', exit: '13:00' }, sunday: { entry: '08:00', exit: '18:00' } };
-  }
-}
-
-// Check if a date falls within any novedad period
-function getNovedadForDate(date: string, novedades: NovedadInfo[]): NovedadInfo | null {
-  return novedades.find(n => date >= n.startDate && date <= n.endDate) || null;
-}
-
-// Check if a date is a Costa Rica national holiday
-function isCostaRicaHoliday(dateStr: string): boolean {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  
-  const fixedHolidays = [
-    `${year}-01-01`, // Año Nuevo
-    `${year}-04-11`, // Día de Juan Santamaría
-    `${year}-05-01`, // Día del Trabajador
-    `${year}-07-25`, // Anexión de Guanacaste
-    `${year}-08-02`, // Día de la Virgen de los Ángeles
-    `${year}-08-15`, // Día de la Madre
-    `${year}-09-15`, // Día de la Independencia
-    `${year}-12-25`, // Navidad
-  ];
-  
-  return fixedHolidays.includes(dateStr);
-}
+// Standard weekend hours
+export const WEEKEND_DAY_HOURS = 10;
 
 // Get the ISO week number for a date
 export function getWeekNumber(dateStr: string): number {
@@ -120,133 +83,157 @@ function getDayOfWeek(dateStr: string): number {
   return date.getDay();
 }
 
+// Check if a date is a Costa Rica national holiday
+function isCostaRicaHoliday(dateStr: string): boolean {
+  const [year, month, day] = dateStr.split('-').map(Number);
+
+  const fixedHolidays = [
+    `${year}-01-01`, // Año Nuevo
+    `${year}-04-11`, // Día de Juan Santamaría
+    `${year}-05-01`, // Día del Trabajador
+    `${year}-07-25`, // Anexión de Guanacaste
+    `${year}-08-02`, // Día de la Virgen de los Ángeles
+    `${year}-08-15`, // Día de la Madre
+    `${year}-09-15`, // Día de la Independencia
+    `${year}-12-25`, // Navidad
+  ];
+
+  return fixedHolidays.includes(dateStr);
+}
+
+// Check if a date falls within any novedad period
+function getNovedadForDate(date: string, novedades: NovedadInfo[]): NovedadInfo | null {
+  return novedades.find(n => date >= n.startDate && date <= n.endDate) || null;
+}
+
+// Default time calculations for the standard 48h work week
+export function getDefaultTimes(worksWithWeekend: boolean) {
+  if (!worksWithWeekend) {
+    // No weekend work: L-V 8:00-17:36 (9h36m each, 48h total)
+    return {
+      weekday: { entry: '08:00', exit: '17:36' },
+      weekend: { entry: '', exit: '' },
+    };
+  }
+
+  // With weekend work: L-V 8:00-15:36 (7h36m each, 38h total) + weekend 8:00-18:00 (10h)
+  return {
+    weekday: { entry: '08:00', exit: '15:36' },
+    weekend: { entry: '08:00', exit: '18:00' },
+  };
+}
+
 // Generate weekend rotation assignments
-// The algorithm tries to alternate weekends for "mixto" staff
-// and assign sabado/domingo only staff to their respective days
-// It maximizes rotation to minimize repeats
+// For SABADO: always work Saturdays, rest Sundays
+// For DOMINGO: always work Sundays, rest Saturdays
+// For MIXTO: work one weekend day per weekend, rotate for variety
 export function generateWeekendRotation(
   staff: StaffInfo[],
   year: number,
   month: number,
   novedades: NovedadInfo[]
-): Map<string, { staffWorking: string[]; isSaturday: boolean; isSunday: boolean }> {
-  const rotation = new Map<string, { staffWorking: string[]; isSaturday: boolean; isSunday: boolean }>();
-  
-  // Get all Saturdays and Sundays in the month
+): Map<string, Set<string>> { // date -> Set of staff IDs working that date
+  const rotation = new Map<string, Set<string>>();
+
   const daysInMonth = new Date(year, month, 0).getDate();
-  
+
   // Collect all weekends (Saturday-Sunday pairs)
-  const saturdays: string[] = [];
-  const sundays: string[] = [];
-  
+  const weekends: { saturday: string; sunday: string }[] = [];
+  let currentSat: string | null = null;
+
   for (let day = 1; day <= daysInMonth; day++) {
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const dow = getDayOfWeek(dateStr);
-    if (dow === 6) saturdays.push(dateStr);
-    if (dow === 0) sundays.push(dateStr);
+    if (dow === 6) {
+      currentSat = dateStr;
+    }
+    if (dow === 0 && currentSat) {
+      weekends.push({ saturday: currentSat, sunday: dateStr });
+      currentSat = null;
+    }
   }
-  
-  // Categorize staff by weekend preference
-  const mixtoStaff = staff.filter(s => s.finDeSemanaPreferente === 'MIXTO');
+
+  // Handle case where month starts with a Sunday (no preceding Saturday in same month)
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const dow = getDayOfWeek(dateStr);
+    if (dow === 0) {
+      // Check if this Sunday is already paired
+      if (!rotation.has(dateStr) && !weekends.some(w => w.sunday === dateStr)) {
+        rotation.set(dateStr, new Set()); // Standalone Sunday
+      }
+    }
+  }
+
+  // Categorize staff
   const sabadoStaff = staff.filter(s => s.finDeSemanaPreferente === 'SABADO');
   const domingoStaff = staff.filter(s => s.finDeSemanaPreferente === 'DOMINGO');
-  
-  // Track how many times each staff has been assigned to each day type
+  const mixtoStaff = staff.filter(s => s.finDeSemanaPreferente === 'MIXTO');
+
+  // Track rotation for mixto staff
   const satCount = new Map<string, number>();
   const sunCount = new Map<string, number>();
   staff.forEach(s => { satCount.set(s.id, 0); sunCount.set(s.id, 0); });
-  
-  // Track last assignment for variety
-  const lastAssignment = new Map<string, 'saturday' | 'sunday' | null>();
-  staff.forEach(s => lastAssignment.set(s.id, null));
-  
-  // Number of staff needed per weekend day
-  // Typically 2-3 for Saturday, 1-2 for Sunday
-  const totalStaff = staff.length;
-  const satSlotsNeeded = Math.max(2, Math.min(4, Math.ceil(totalStaff * 0.3)));
-  const sunSlotsNeeded = Math.max(1, Math.min(3, Math.ceil(totalStaff * 0.2)));
-  
-  // Assign staff to each Saturday
-  for (const satDate of saturdays) {
-    const workingStaff: string[] = [];
-    
-    // Assign SABADO-only staff first
+
+  // Process each weekend pair
+  for (const weekend of weekends) {
+    const satWorkers = new Set<string>();
+    const sunWorkers = new Set<string>();
+
+    // SABADO-only staff always work Saturdays
     for (const s of sabadoStaff) {
-      if (workingStaff.length >= satSlotsNeeded) break;
-      const novedad = getNovedadForDate(satDate, novedades);
+      const novedad = getNovedadForDate(weekend.saturday, novedades.filter(n => n.staffId === s.id));
       if (!novedad) {
-        workingStaff.push(s.id);
+        satWorkers.add(s.id);
         satCount.set(s.id, (satCount.get(s.id) || 0) + 1);
-        lastAssignment.set(s.id, 'saturday');
       }
     }
-    
-    // Fill remaining slots with mixto staff, rotating for variety
-    const sortedMixto = [...mixtoStaff]
-      .filter(s => !workingStaff.includes(s.id))
-      .sort((a, b) => {
-        const aTotal = (satCount.get(a.id) || 0) + (sunCount.get(a.id) || 0);
-        const bTotal = (satCount.get(b.id) || 0) + (sunCount.get(b.id) || 0);
-        if (aTotal !== bTotal) return aTotal - bTotal;
-        // Prefer opposite of last assignment
-        const aPreferSat = lastAssignment.get(a.id) === 'sunday' ? -1 : 1;
-        const bPreferSat = lastAssignment.get(b.id) === 'sunday' ? -1 : 1;
-        return aPreferSat - bPreferSat;
-      });
-    
-    for (const s of sortedMixto) {
-      if (workingStaff.length >= satSlotsNeeded) break;
-      const novedad = getNovedadForDate(satDate, novedades);
-      if (!novedad) {
-        workingStaff.push(s.id);
-        satCount.set(s.id, (satCount.get(s.id) || 0) + 1);
-        lastAssignment.set(s.id, 'saturday');
-      }
-    }
-    
-    rotation.set(satDate, { staffWorking: workingStaff, isSaturday: true, isSunday: false });
-  }
-  
-  // Assign staff to each Sunday
-  for (const sunDate of sundays) {
-    const workingStaff: string[] = [];
-    
-    // Assign DOMINGO-only staff first
+
+    // DOMINGO-only staff always work Sundays
     for (const s of domingoStaff) {
-      if (workingStaff.length >= sunSlotsNeeded) break;
-      const novedad = getNovedadForDate(sunDate, novedades);
+      const novedad = getNovedadForDate(weekend.sunday, novedades.filter(n => n.staffId === s.id));
       if (!novedad) {
-        workingStaff.push(s.id);
+        sunWorkers.add(s.id);
         sunCount.set(s.id, (sunCount.get(s.id) || 0) + 1);
-        lastAssignment.set(s.id, 'sunday');
       }
     }
-    
-    // Fill remaining slots with mixto staff
-    const sortedMixto = [...mixtoStaff]
-      .filter(s => !workingStaff.includes(s.id))
-      .sort((a, b) => {
-        const aTotal = (satCount.get(a.id) || 0) + (sunCount.get(a.id) || 0);
-        const bTotal = (satCount.get(b.id) || 0) + (sunCount.get(b.id) || 0);
-        if (aTotal !== bTotal) return aTotal - bTotal;
-        const aPreferSun = lastAssignment.get(a.id) === 'saturday' ? -1 : 1;
-        const bPreferSun = lastAssignment.get(b.id) === 'saturday' ? -1 : 1;
-        return aPreferSun - bPreferSun;
-      });
-    
-    for (const s of sortedMixto) {
-      if (workingStaff.length >= sunSlotsNeeded) break;
-      const novedad = getNovedadForDate(sunDate, novedades);
-      if (!novedad) {
-        workingStaff.push(s.id);
+
+    // MIXTO staff: split between Saturday and Sunday for variety
+    // Sort by: least total assignments first, then prefer opposite of what they did more
+    const availableMixto = mixtoStaff.filter(s => {
+      const satNov = getNovedadForDate(weekend.saturday, novedades.filter(n => n.staffId === s.id));
+      const sunNov = getNovedadForDate(weekend.sunday, novedades.filter(n => n.staffId === s.id));
+      return !satNov && !sunNov; // Available for the whole weekend
+    });
+
+    const sortedMixto = [...availableMixto].sort((a, b) => {
+      const aTotal = (satCount.get(a.id) || 0) + (sunCount.get(a.id) || 0);
+      const bTotal = (satCount.get(b.id) || 0) + (sunCount.get(b.id) || 0);
+      if (aTotal !== bTotal) return aTotal - bTotal;
+      // Prefer assigning to the day they've worked less
+      const aDiff = (sunCount.get(a.id) || 0) - (satCount.get(a.id) || 0); // Positive = worked more sun
+      const bDiff = (sunCount.get(b.id) || 0) - (satCount.get(b.id) || 0);
+      return aDiff - bDiff; // Higher diff = prefer Saturday
+    });
+
+    // Alternate: first goes to Saturday, second to Sunday, etc.
+    for (let i = 0; i < sortedMixto.length; i++) {
+      const s = sortedMixto[i];
+      if (i % 2 === 0) {
+        // Assign to Saturday
+        satWorkers.add(s.id);
+        satCount.set(s.id, (satCount.get(s.id) || 0) + 1);
+      } else {
+        // Assign to Sunday
+        sunWorkers.add(s.id);
         sunCount.set(s.id, (sunCount.get(s.id) || 0) + 1);
-        lastAssignment.set(s.id, 'sunday');
       }
     }
-    
-    rotation.set(sunDate, { staffWorking: workingStaff, isSaturday: false, isSunday: true });
+
+    rotation.set(weekend.saturday, satWorkers);
+    rotation.set(weekend.sunday, sunWorkers);
   }
-  
+
   return rotation;
 }
 
@@ -255,70 +242,43 @@ export function generateSchedule(
   staff: StaffInfo[],
   year: number,
   month: number,
-  novedades: NovedadInfo[]
+  novedades: NovedadInfo[],
+  useBlankEntries: boolean = true
 ): ScheduleEntryInput[] {
   const entries: ScheduleEntryInput[] = [];
   const daysInMonth = new Date(year, month, 0).getDate();
-  
+
   // Generate weekend rotation
   const weekendRotation = generateWeekendRotation(staff, year, month, novedades);
-  
-  // Determine which weekdays each staff gets off as compensatory for weekend work
-  // Rule: If you work Saturday, you get Friday off (same ISO week). 
-  // If you work Sunday, you get Monday off (same ISO week).
-  // For nocturna (Gerson), they work Mon-Sat by default (6 × 6h = 36h), Sunday off.
-  
-  // Build a set of (staffId, date) pairs where staff gets compensatory day off
-  const compensatoryDays = new Map<string, Set<string>>(); // staffId -> Set of dates off
-  
+
+  // Build a map of which weekend days each staff works
+  const staffWeekendWork = new Map<string, Set<string>>(); // staffId -> Set of weekend dates they work
   for (const s of staff) {
-    compensatoryDays.set(s.id, new Set());
+    staffWeekendWork.set(s.id, new Set());
   }
-  
-  // For each weekend assignment, assign a compensatory weekday off in the SAME week
-  for (const [weekendDate, rotationData] of weekendRotation) {
-    for (const staffId of rotationData.staffWorking) {
-      const s = staff.find(st => st.id === staffId);
-      if (!s) continue;
-      
-      // Nocturna staff don't need compensatory days (they work 6 days × 6h = 36h)
-      if (s.jornadaPreferente === 'NOCTURNA') continue;
-      
-      const weekendDateObj = new Date(weekendDate + 'T12:00:00');
-      const dow = weekendDateObj.getDay();
-      
-      // Find compensatory day in the SAME ISO week
-      let compDate: Date;
-      if (dow === 6) { // Saturday worked -> Friday off (day before, same week)
-        compDate = new Date(weekendDateObj);
-        compDate.setDate(compDate.getDate() - 1); // Friday
-      } else { // Sunday worked -> Friday before off (same ISO week)
-        compDate = new Date(weekendDateObj);
-        compDate.setDate(compDate.getDate() - 2); // Friday
-      }
-      
-      // Make sure compensatory day is still in the same month and is a weekday
-      if (compDate.getMonth() + 1 === month && compDate.getFullYear() === year) {
-        const compDow = compDate.getDay();
-        if (compDow >= 1 && compDow <= 5) { // Mon-Fri
-          const compStr = `${year}-${String(month).padStart(2, '0')}-${String(compDate.getDate()).padStart(2, '0')}`;
-          compensatoryDays.get(staffId)?.add(compStr);
-        }
-      }
+  for (const [date, workingIds] of weekendRotation) {
+    for (const staffId of workingIds) {
+      staffWeekendWork.get(staffId)?.add(date);
     }
   }
-  
-  // Now generate all entries
+
+  // Determine if each staff works ANY weekend day in this month
+  const staffWorksWithWeekend = new Map<string, boolean>();
+  for (const s of staff) {
+    staffWorksWithWeekend.set(s.id, (staffWeekendWork.get(s.id)?.size || 0) > 0);
+  }
+
+  // Generate entries for each day
   for (let day = 1; day <= daysInMonth; day++) {
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const dow = getDayOfWeek(dateStr);
     const isWeekend = dow === 0 || dow === 6;
     const isHoliday = isCostaRicaHoliday(dateStr);
-    
+
     for (const s of staff) {
       // Check novedades first
-      const novedad = getNovedadForDate(dateStr, novedades);
-      
+      const novedad = getNovedadForDate(dateStr, novedades.filter(n => n.staffId === s.id));
+
       if (novedad) {
         entries.push({
           staffId: s.id,
@@ -333,7 +293,7 @@ export function generateSchedule(
         });
         continue;
       }
-      
+
       if (isHoliday) {
         entries.push({
           staffId: s.id,
@@ -348,41 +308,53 @@ export function generateSchedule(
         });
         continue;
       }
-      
+
       if (isWeekend) {
-        // Check if this staff is assigned to work this weekend
-        const rotationData = weekendRotation.get(dateStr);
-        const isAssigned = rotationData?.staffWorking.includes(s.id) || false;
-        
-        if (isAssigned) {
-          let entryTime: string;
-          let exitTime: string;
-          
-          if (s.horaEntradaSabado && s.horaSalidaSabado && dow === 6) {
-            entryTime = s.horaEntradaSabado;
-            exitTime = s.horaSalidaSabado;
-          } else if (s.horaEntradaDomingo && s.horaSalidaDomingo && dow === 0) {
-            entryTime = s.horaEntradaDomingo;
-            exitTime = s.horaSalidaDomingo;
+        // Check if this staff is assigned to work this weekend day
+        const isWorkingWeekend = staffWeekendWork.get(s.id)?.has(dateStr) || false;
+
+        if (isWorkingWeekend) {
+          // Check if staff has a proforma with times for this day
+          const proformaEntry = s.proformaEntries?.find(pe => pe.diaSemana === dow);
+
+          if (proformaEntry && !proformaEntry.esDescanso) {
+            // Use proforma times
+            const hours = calculateHours(proformaEntry.horaEntrada, proformaEntry.horaSalida);
+            entries.push({
+              staffId: s.id,
+              date: dateStr,
+              entryTime: proformaEntry.horaEntrada,
+              exitTime: proformaEntry.horaSalida,
+              hours,
+              type: 'NORMAL',
+              isWeekend: true,
+              isManual: false,
+            });
+          } else if (!useBlankEntries) {
+            // Default: weekend day = 10h (8:00-18:00)
+            entries.push({
+              staffId: s.id,
+              date: dateStr,
+              entryTime: '08:00',
+              exitTime: '18:00',
+              hours: WEEKEND_DAY_HOURS,
+              type: 'NORMAL',
+              isWeekend: true,
+              isManual: false,
+            });
           } else {
-            const defaults = getDefaultShiftTimes(s.jornadaPreferente as JornadaType);
-            const shift = dow === 6 ? defaults.saturday : defaults.sunday;
-            entryTime = shift.entry;
-            exitTime = shift.exit;
+            // Blank entry - user will fill in
+            entries.push({
+              staffId: s.id,
+              date: dateStr,
+              entryTime: '',
+              exitTime: '',
+              hours: 0,
+              type: 'NORMAL',
+              isWeekend: true,
+              isManual: false,
+            });
           }
-          
-          const hours = calculateHours(entryTime, exitTime);
-          
-          entries.push({
-            staffId: s.id,
-            date: dateStr,
-            entryTime,
-            exitTime,
-            hours,
-            type: 'NORMAL',
-            isWeekend: true,
-            isManual: false,
-          });
         } else {
           // Day off on weekend
           entries.push({
@@ -397,10 +369,11 @@ export function generateSchedule(
           });
         }
       } else {
-        // Weekday - check if this is a compensatory day off
-        const isCompensatory = compensatoryDays.get(s.id)?.has(dateStr) || false;
-        
-        if (isCompensatory) {
+        // Weekday
+        // Check if staff has a proforma with times for this weekday
+        const proformaEntry = s.proformaEntries?.find(pe => pe.diaSemana === dow);
+
+        if (proformaEntry && proformaEntry.esDescanso) {
           entries.push({
             staffId: s.id,
             date: dateStr,
@@ -408,22 +381,45 @@ export function generateSchedule(
             exitTime: '',
             hours: 0,
             type: 'DESCANSO',
-            notes: 'Descanso compensatorio',
+            notes: 'Según proforma',
+            isWeekend: false,
+            isManual: false,
+          });
+        } else if (proformaEntry && !proformaEntry.esDescanso) {
+          const hours = calculateHours(proformaEntry.horaEntrada, proformaEntry.horaSalida);
+          entries.push({
+            staffId: s.id,
+            date: dateStr,
+            entryTime: proformaEntry.horaEntrada,
+            exitTime: proformaEntry.horaSalida,
+            hours,
+            type: 'NORMAL',
+            isWeekend: false,
+            isManual: false,
+          });
+        } else if (!useBlankEntries) {
+          // Default: if works weekend → 8:00-15:36 (7h36m), else 8:00-17:36 (9h36m)
+          const worksWeekend = staffWorksWithWeekend.get(s.id) || false;
+          const defaultTimes = getDefaultTimes(worksWeekend);
+          const hours = calculateHours(defaultTimes.weekday.entry, defaultTimes.weekday.exit);
+          entries.push({
+            staffId: s.id,
+            date: dateStr,
+            entryTime: defaultTimes.weekday.entry,
+            exitTime: defaultTimes.weekday.exit,
+            hours,
+            type: 'NORMAL',
             isWeekend: false,
             isManual: false,
           });
         } else {
-          // Normal weekday work
-          const entryTime = s.horaEntrada;
-          const exitTime = s.horaSalida;
-          const hours = calculateHours(entryTime, exitTime);
-          
+          // Blank entry - user will fill in
           entries.push({
             staffId: s.id,
             date: dateStr,
-            entryTime,
-            exitTime,
-            hours,
+            entryTime: '',
+            exitTime: '',
+            hours: 0,
             type: 'NORMAL',
             isWeekend: false,
             isManual: false,
@@ -432,6 +428,35 @@ export function generateSchedule(
       }
     }
   }
-  
+
   return entries;
+}
+
+// Apply a proforma to existing schedule entries
+export function applyProformaToEntries(
+  entries: ScheduleEntryInput[],
+  proformaEntries: ProformaEntryInfo[],
+  staffWorksWithWeekend: boolean
+): ScheduleEntryInput[] {
+  return entries.map(entry => {
+    if (entry.type !== 'NORMAL' || entry.isManual) return entry;
+
+    const dow = getDayOfWeek(entry.date);
+    const proformaEntry = proformaEntries.find(pe => pe.diaSemana === dow);
+
+    if (!proformaEntry) return entry;
+
+    if (proformaEntry.esDescanso) {
+      return { ...entry, entryTime: '', exitTime: '', hours: 0, type: 'DESCANSO' as EntryType, notes: 'Según proforma' };
+    }
+
+    const hours = calculateHours(proformaEntry.horaEntrada, proformaEntry.horaSalida);
+    return {
+      ...entry,
+      entryTime: proformaEntry.horaEntrada,
+      exitTime: proformaEntry.horaSalida,
+      hours,
+      type: 'NORMAL' as EntryType,
+    };
+  });
 }

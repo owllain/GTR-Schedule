@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { calculateHours } from '@/lib/schedule-generator';
+import { calculateHours, WEEKLY_TARGET_HOURS } from '@/lib/schedule-generator';
 
 // GET schedule entries for a given month
 export async function GET(request: NextRequest) {
@@ -48,7 +48,6 @@ export async function GET(request: NextRequest) {
         weekMap.get(weekNum)!.dates.add(entry.date);
       }
 
-      const targetHours = s.jornadaPreferente === 'DIURNA' ? 48 : s.jornadaPreferente === 'MIXTA' ? 42 : 36;
       weeklySummaries[s.id] = Array.from(weekMap.entries()).map(([weekNum, data]) => {
         const sortedDates = Array.from(data.dates).sort();
         return {
@@ -56,7 +55,7 @@ export async function GET(request: NextRequest) {
           weekStart: sortedDates[0],
           weekEnd: sortedDates[sortedDates.length - 1],
           hours: Math.round(data.hours * 100) / 100,
-          target: targetHours,
+          target: WEEKLY_TARGET_HOURS,
         };
       }).sort((a, b) => a.weekNum - b.weekNum);
     }
@@ -84,14 +83,16 @@ export async function PUT(request: NextRequest) {
     }
 
     let hours = existing.hours;
-    const newEntryTime = entryTime ?? existing.entryTime;
-    const newExitTime = exitTime ?? existing.exitTime;
+    const newEntryTime = entryTime !== undefined ? entryTime : existing.entryTime;
+    const newExitTime = exitTime !== undefined ? exitTime : existing.exitTime;
     const newType = type ?? existing.type;
 
     if (newType === 'DESCANSO' || newType === 'VACACION' || newType === 'INCAPACIDAD' || newType === 'LICENCIA' || newType === 'FERIADO' || newType === 'PERMISO') {
       hours = 0;
     } else if (newEntryTime && newExitTime) {
       hours = calculateHours(newEntryTime, newExitTime);
+    } else {
+      hours = 0;
     }
 
     const updated = await db.scheduleEntry.update({

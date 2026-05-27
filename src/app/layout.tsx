@@ -14,16 +14,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ScheduleCR - Generador de Horarios Costa Rica",
-  description: "Automatización de generación de horarios del personal conforme a la legislación laboral de Costa Rica",
-  keywords: ["horarios", "Costa Rica", "jornada laboral", "schedule", "staff"],
-  authors: [{ name: "ScheduleCR" }],
+  title: "Gestor de Horarios - STAFF",
+  description: "Gestor de Horarios del Personal conforme a la legislación laboral de Costa Rica",
+  keywords: ["horarios", "Costa Rica", "jornada laboral", "schedule", "staff", "gestor"],
+  authors: [{ name: "Alvaro Enrique Cascante Moraga" }],
   icons: {
     icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
   },
   openGraph: {
-    title: "ScheduleCR",
-    description: "Generador de horarios conforme a la legislación laboral de Costa Rica",
+    title: "Gestor de Horarios - STAFF",
+    description: "Gestor de Horarios del Personal - Costa Rica",
     type: "website",
   },
 };
@@ -34,7 +34,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="es" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >

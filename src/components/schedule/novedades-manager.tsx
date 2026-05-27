@@ -1,16 +1,16 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
-import { Plus, Trash2, AlertCircle, Calendar } from 'lucide-react'
+import { Plus, Trash2, AlertCircle, Calendar, Pencil } from 'lucide-react'
 
 interface Novedad {
   id: string
@@ -41,11 +41,11 @@ const typeLabels: Record<string, string> = {
 }
 
 const typeColors: Record<string, string> = {
-  VACACION: 'bg-green-100 text-green-800 border-green-200',
+  VACACION: 'bg-emerald-100 text-emerald-800 border-emerald-200',
   INCAPACIDAD: 'bg-red-100 text-red-800 border-red-200',
-  LICENCIA: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  LICENCIA: 'bg-amber-100 text-amber-800 border-amber-200',
   PERMISO: 'bg-orange-100 text-orange-800 border-orange-200',
-  FERIADO: 'bg-blue-100 text-blue-800 border-blue-200',
+  FERIADO: 'bg-violet-100 text-violet-800 border-violet-200',
 }
 
 export function NovedadesManager({ onRefresh }: NovedadesManagerProps) {
@@ -151,25 +151,25 @@ export function NovedadesManager({ onRefresh }: NovedadesManagerProps) {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="border-slate-200/80 shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           <div>
             <CardTitle className="text-xl flex items-center gap-2">
               <AlertCircle className="w-5 h-5 text-amber-600" />
               Novedades
             </CardTitle>
-            <p className="text-sm text-slate-500 mt-1">
+            <CardDescription className="mt-1">
               Registre vacaciones, incapacidades, licencias y permisos
-            </p>
+            </CardDescription>
           </div>
           <Dialog open={dialogOpen} onOpenChange={open => { setDialogOpen(open); if (!open) resetForm() }}>
             <DialogTrigger asChild>
-              <Button className="bg-amber-600 hover:bg-amber-700 gap-2" disabled={staffList.length === 0}>
+              <Button className="bg-amber-600 hover:bg-amber-700 gap-2 shadow-sm" disabled={staffList.length === 0}>
                 <Plus className="w-4 h-4" />
                 Agregar Novedad
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>Registrar Novedad</DialogTitle>
               </DialogHeader>
@@ -212,7 +212,7 @@ export function NovedadesManager({ onRefresh }: NovedadesManagerProps) {
                 </div>
 
                 {formData.startDate && formData.endDate && formData.endDate >= formData.startDate && (
-                  <div className="bg-amber-50 p-3 rounded-lg">
+                  <div className="bg-amber-50 p-3 rounded-lg border border-amber-100">
                     <p className="text-sm text-amber-800">
                       <Calendar className="w-4 h-4 inline mr-1" />
                       Duración: <span className="font-bold">{calculateDays(formData.startDate, formData.endDate)} día(s)</span>
@@ -226,7 +226,9 @@ export function NovedadesManager({ onRefresh }: NovedadesManagerProps) {
                 </div>
 
                 <div className="flex justify-end gap-2 pt-2">
-                  <Button variant="outline" onClick={() => { setDialogOpen(false); resetForm() }}>Cancelar</Button>
+                  <DialogClose asChild>
+                    <Button variant="outline">Cancelar</Button>
+                  </DialogClose>
                   <Button className="bg-amber-600 hover:bg-amber-700" onClick={handleSubmit}>Guardar</Button>
                 </div>
               </div>
@@ -258,7 +260,7 @@ export function NovedadesManager({ onRefresh }: NovedadesManagerProps) {
                 </TableHeader>
                 <TableBody>
                   {novedades.map(n => (
-                    <TableRow key={n.id}>
+                    <TableRow key={n.id} className="hover:bg-slate-50/50">
                       <TableCell className="font-medium">{n.staff?.nombre} {n.staff?.apellido}</TableCell>
                       <TableCell>
                         <Badge className={typeColors[n.type] || ''} variant="outline">
@@ -270,8 +272,8 @@ export function NovedadesManager({ onRefresh }: NovedadesManagerProps) {
                       <TableCell className="text-center">{calculateDays(n.startDate, n.endDate)}</TableCell>
                       <TableCell className="hidden md:table-cell text-sm text-slate-600">{n.description || '-'}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700" onClick={() => handleDelete(n.id)}>
-                          <Trash2 className="w-4 h-4" />
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700" onClick={() => handleDelete(n.id)}>
+                          <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       </TableCell>
                     </TableRow>

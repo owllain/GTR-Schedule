@@ -1,60 +1,35 @@
 ---
 Task ID: 1
 Agent: Main Agent
-Task: Set up Prisma schema for Staff, Schedule, and Novedad models
+Task: Complete rewrite of Gestor de Horarios - STAFF application
 
 Work Log:
-- Designed database schema with Staff, ScheduleEntry, and Novedad models
-- Staff includes: nombre, apellido, jornadaPreferente (DIURNA/MIXTA/NOCTURNA), finDeSemanaPreferente (MIXTO/SABADO/DOMINGO)
-- Staff also includes custom shift times for weekday, Saturday, and Sunday
-- ScheduleEntry tracks: date, entryTime, exitTime, hours, type, notes, isWeekend, isManual
-- Novedad tracks: staffId, startDate, endDate, type (VACACION/INCAPACIDAD/etc), description
-- Ran prisma db push to create the SQLite database
+- Updated Prisma schema: removed jornadaPreferente and time fields from Staff, added Proforma and ProformaEntry models
+- Rewrote schedule-generator.ts with new logic: 48h/week standard, 10h weekend days, 7.6h L-V when weekend worked
+- Updated Staff API: simplified (nombre, apellido, finDeSemanaPreferente, proformaId), added "NONE" handling for proformaId
+- Created CSV import API at /api/staff/import-csv (supports nombre, apellido, finDeSemana, proforma columns)
+- Created Proformas API at /api/proformas with full CRUD and ProformaEntry management
+- Updated Schedule generate API: supports useBlankEntries flag, integrates proformas
+- Updated Schedule API: simplified weekly target to 48h (no jornada types)
+- Enhanced Excel export: modern teal color palette, alternating staff column colors, weekend color coding (blue=Sat, red=Sun), credit row for Alvaro
+- Updated branding: "Gestor de Horarios - STAFF" title, "Desarrollado por Alvaro Enrique Cascante Moraga acascantem@netcom.com.pa" in footer/credits
+- Rewrote page.tsx: 4 tabs (Horarios, Personal, Proformas, Novedades), modern UI with teal gradient header
+- Rewrote staff-manager.tsx: simplified form (no schedule fields), CSV import button, proforma assignment, avatar initials
+- Rewrote schedule-dashboard.tsx: proforma bulk apply, "Generar con Horas" button, quick fill buttons in edit dialog, blank entry support
+- Created proformas-manager.tsx: card-based layout, weekly schedule grid editor, quick-load default templates, hour calculation badge
+- Updated novedades-manager.tsx: consistent modern styling
+- Updated layout.tsx: Spanish language, new metadata
+- Seeded 5 default proformas: Estándar 48h, Con Sábado, Con Domingo, L-M 8-6/J-V 9-6, L-M 9-4/Mi-V 8-4
+- Cleared all test staff data (no defaults)
+- Fixed dev script to remove `tee` pipe that was causing server crashes
+- All lint checks pass
 
 Stage Summary:
-- Database schema created with 3 models
-- SQLite database at db/custom.db
-
----
-Task ID: 2
-Agent: Main Agent
-Task: Build API routes for staff CRUD, schedule generation, novedades, and Excel export
-
-Work Log:
-- Created /api/staff route with GET, POST, PUT, DELETE
-- Created /api/schedule route with GET (entries + weekly summaries) and PUT (update entry)
-- Created /api/schedule/generate route with POST (auto-generate monthly schedule)
-- Created /api/novedades route with GET, POST, PUT, DELETE
-- Created /api/export route with POST (generates .xlsx using openpyxl with professional formatting)
-- Implemented Costa Rica labor law compliance: Diurna 48h, Mixta 42h, Nocturna 36h
-- Implemented weekend rotation logic with variety maximization
-- Implemented compensatory days off for weekend work (Friday off for Saturday/Sunday work)
-
-Stage Summary:
-- 5 API routes created
-- Schedule generation with Costa Rica labor law compliance
-- Weekend rotation algorithm with variety maximization
-- Excel export with openpyxl (professional formatting, colors, merged headers)
-
----
-Task ID: 3
-Agent: Main Agent
-Task: Build full frontend application
-
-Work Log:
-- Created main page.tsx with tab navigation (Horarios, Personal, Novedades)
-- Created StaffManager component with full CRUD, jornada/weekend preferences, custom shift times
-- Created ScheduleDashboard component with monthly calendar view, weekly hour summaries, edit dialog
-- Created NovedadesManager component with CRUD for vacations, sick leave, etc.
-- Updated layout.tsx with proper Spanish metadata
-- Added 10 test staff members from the Excel example
-- Generated June 2026 schedule and verified weekly hours
-- Tested Excel export (professional .xlsx with green header, jornada info, color-coded entries)
-- Tested novedades (vacation for Kevin June 15-20)
-
-Stage Summary:
-- Full frontend with 3 tabs: Horarios, Personal, Novedades
-- Schedule generation works with Costa Rica labor law compliance
-- Weekend rotation with compensatory days off
-- Excel export produces professional .xlsx files
-- Novedades (vacations, etc.) properly integrated into schedule generation
+- Complete application rewrite with new branding "Gestor de Horarios - STAFF"
+- Staff model simplified: nombre, apellido, finDeSemanaPreferente, proformaId
+- Schedule generation: blank mode (default) or with auto-calculated hours
+- Weekend rotation: SABADO=only Sat, DOMINGO=only Sun, MIXTO=alternates
+- Proformas system: 5 default templates, custom creation, bulk apply to schedules
+- CSV import for staff
+- Enhanced Excel export with modern colors and credit line
+- No default staff data (clean start)

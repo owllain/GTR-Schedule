@@ -11,29 +11,48 @@ model Staff {
   id                    String   @id @default(cuid())
   nombre                String
   apellido              String
-  jornadaPreferente     String   @default("DIURNA") // DIURNA, MIXTA, NOCTURNA
   finDeSemanaPreferente String   @default("MIXTO")  // MIXTO, SABADO, DOMINGO
-  horaEntrada           String   @default("08:00")  // Default entry time
-  horaSalida            String   @default("17:00")  // Default exit time
-  horaEntradaSabado     String   @default("08:00")  // Saturday entry
-  horaSalidaSabado      String   @default("13:00")  // Saturday exit
-  horaEntradaDomingo    String   @default("08:00")  // Sunday entry
-  horaSalidaDomingo     String   @default("18:00")  // Sunday exit
+  proformaId            String?  // Optional link to proforma template
   activo                Boolean  @default(true)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
   scheduleEntries ScheduleEntry[]
   novedades       Novedad[]
+  proforma        Proforma?  @relation(fields: [proformaId], references: [id], onDelete: SetNull)
+}
+
+model Proforma {
+  id          String   @id @default(cuid())
+  nombre      String
+  descripcion String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  entradas ProformaEntry[]
+  staff    Staff[]
+}
+
+model ProformaEntry {
+  id          String   @id @default(cuid())
+  proformaId  String
+  diaSemana   Int      // 0=Dom, 1=Lun, 2=Mar, 3=Mie, 4=Jue, 5=Vie, 6=Sab
+  horaEntrada String   // HH:mm format
+  horaSalida  String   // HH:mm format
+  esDescanso  Boolean  @default(false) // true = day off
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  proforma Proforma @relation(fields: [proformaId], references: [id], onDelete: Cascade)
 }
 
 model ScheduleEntry {
   id        String   @id @default(cuid())
   staffId   String
   date      String   // YYYY-MM-DD format
-  entryTime String   // HH:mm format
-  exitTime  String   // HH:mm format
-  hours     Float    // Calculated hours
+  entryTime String   @default("") // HH:mm format
+  exitTime  String   @default("") // HH:mm format
+  hours     Float    @default(0)  // Calculated hours
   type      String   @default("NORMAL") // NORMAL, VACACION, INCAPACIDAD, LICENCIA, PERMISO, FERIADO, DESCANSO
   notes     String?
   isWeekend Boolean  @default(false)

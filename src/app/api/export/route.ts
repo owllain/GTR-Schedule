@@ -22,13 +22,14 @@ export async function POST(request: NextRequest) {
 
     const entries = await db.scheduleEntry.findMany({
       where: { date: { gte: startDate, lte: endDate } },
-      include: { staff: true },
+      include: { staff: { include: { proforma: true } } },
       orderBy: [{ date: 'asc' }, { staff: { apellido: 'asc' } }],
     });
 
     const staffList = await db.staff.findMany({
       where: { activo: true },
       orderBy: [{ apellido: 'asc' }, { nombre: 'asc' }],
+      include: { proforma: { include: { entradas: true } } },
     });
 
     if (entries.length === 0) {
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
     // Build data structure for Python script
     const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
     const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-    
+
     // Create entry map
     const entryMap = new Map<string, Map<string, typeof entries[0]>>();
     for (const entry of entries) {
@@ -48,7 +49,6 @@ export async function POST(request: NextRequest) {
 
     // Build JSON data for Python
     const exportData: any[] = [];
-    let lastWeekNum = -1;
 
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${yearNum}-${String(monthNum).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
         fullDate: dateStr,
         isWeekend,
         weekNum,
+        dow,
         staffData: {} as any,
       };
 
@@ -79,9 +80,10 @@ export async function POST(request: NextRequest) {
             exitTime: entry.exitTime,
             hours: entry.hours,
             type: entry.type,
+            isManual: entry.isManual,
           };
         } else {
-          row.staffData[s.id] = { entryTime: '', exitTime: '', hours: 0, type: 'DESCANSO' };
+          row.staffData[s.id] = { entryTime: '', exitTime: '', hours: 0, type: 'DESCANSO', isManual: false };
         }
       }
 
@@ -90,7 +92,7 @@ export async function POST(request: NextRequest) {
       // Add week total after Sunday or last day
       if (dow === 0 || day === daysInMonth) {
         const totalRow: any = {
-          dateLabel: 'TOTAL',
+          dateLabel: 'TOTAL SEM',
           isTotal: true,
           weekNum,
           staffData: {} as any,
@@ -110,32 +112,37 @@ export async function POST(request: NextRequest) {
         }
         exportData.push(totalRow);
       }
+    }
 
-      lastWeekNum = weekNum;
+    // Calculate month totals
+    const monthTotals: any = {};
+    for (const s of staffList) {
+      const monthHours = entries.filter(e => e.staffId === s.id && e.hours > 0).reduce((sum, e) => sum + e.hours, 0);
+      monthTotals[s.id] = Math.round(monthHours * 100) / 100;
     }
 
     const staffInfo = staffList.map(s => ({
       id: s.id,
       name: `${s.nombre} ${s.apellido}`,
-      jornada: s.jornadaPreferente,
-      targetHours: s.jornadaPreferente === 'DIURNA' ? 48 : s.jornadaPreferente === 'MIXTA' ? 42 : 36,
+      finDeSemana: s.finDeSemanaPreferente,
+      proforma: s.proforma?.nombre || 'Sin proforma',
     }));
 
-    // Generate Excel using Python/openpyxl
-    const title = `Horario Staff ${monthNames[monthNum - 1]} ${yearNum}`;
+    // Generate Excel using Python/openpyxl with ENHANCED COLORS
+    const title = `Gestor de Horarios - STAFF - ${monthNames[monthNum - 1]} ${yearNum}`;
     const tmpDir = '/tmp/schedule_export';
     if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
-    
+
     const jsonPath = path.join(tmpDir, `data_${yearNum}_${monthNum}.json`);
     const xlsxPath = path.join(tmpDir, `horario_${yearNum}_${String(monthNum).padStart(2, '0')}.xlsx`);
-    
-    fs.writeFileSync(jsonPath, JSON.stringify({ title, staffInfo, data: exportData, year: yearNum, month: monthNum }));
+
+    fs.writeFileSync(jsonPath, JSON.stringify({ title, staffInfo, data: exportData, year: yearNum, month: monthNum, monthTotals }));
 
     const pythonScript = `
 import json
 import sys
 from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side, numbers
 from openpyxl.utils import get_column_letter
 
 with open('${jsonPath}', 'r') as f:
@@ -145,87 +152,140 @@ wb = Workbook()
 ws = wb.active
 ws.title = "Horario"
 
-# Colors
-header_fill = PatternFill(start_color="1A7A4C", end_color="1A7A4C", fill_type="solid")
-header_font = Font(color="FFFFFF", bold=True, size=11)
-subheader_fill = PatternFill(start_color="E8F5E9", end_color="E8F5E9", fill_type="solid")
-subheader_font = Font(bold=True, size=9)
-total_fill = PatternFill(start_color="DCFCE7", end_color="DCFCE7", fill_type="solid")
-total_font = Font(bold=True, size=10, color="1A7A4C")
-weekend_fill = PatternFill(start_color="F0F9FF", end_color="F0F9FF", fill_type="solid")
-normal_font = Font(size=10)
-bold_font = Font(bold=True, size=10)
-small_font = Font(size=8, color="666666")
+# Enhanced Color Palette - Modern & Vibrant
+header_fill = PatternFill(start_color="0F766E", end_color="0F766E", fill_type="solid")  # Teal-700
+header_font = Font(color="FFFFFF", bold=True, size=11, name="Calibri")
+subheader_fill = PatternFill(start_color="CCFBF1", end_color="CCFBF1", fill_type="solid")  # Teal-100
+subheader_font = Font(bold=True, size=9, color="0F766E", name="Calibri")
+total_fill = PatternFill(start_color="F0FDFA", end_color="F0FDFA", fill_type="solid")  # Teal-50
+total_font = Font(bold=True, size=10, color="0F766E", name="Calibri")
+weekend_fill = PatternFill(start_color="FEF3C7", end_color="FEF3C7", fill_type="solid")  # Amber-100
+saturday_fill = PatternFill(start_color="DBEAFE", end_color="DBEAFE", fill_type="solid")  # Blue-100
+sunday_fill = PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid")  # Red-100
+normal_font = Font(size=10, name="Calibri")
+bold_font = Font(bold=True, size=10, name="Calibri")
+small_font = Font(size=8, color="6B7280", name="Calibri")
+hours_font = Font(size=9, bold=True, color="0F766E", name="Calibri")
+
+# Type-specific fills with modern palette
+type_colors = {
+    'VACACION': PatternFill(start_color="D1FAE5", end_color="D1FAE5", fill_type="solid"),   # Emerald-100
+    'INCAPACIDAD': PatternFill(start_color="FECACA", end_color="FECACA", fill_type="solid"), # Red-200
+    'LICENCIA': PatternFill(start_color="FEF08A", end_color="FEF08A", fill_type="solid"),    # Yellow-200
+    'PERMISO': PatternFill(start_color="FED7AA", end_color="FED7AA", fill_type="solid"),     # Orange-200
+    'FERIADO': PatternFill(start_color="C7D2FE", end_color="C7D2FE", fill_type="solid"),     # Indigo-200
+    'DESCANSO': PatternFill(start_color="F1F5F9", end_color="F1F5F9", fill_type="solid"),    # Slate-100
+}
+
+type_fonts = {
+    'VACACION': Font(size=9, bold=True, color="065F46", name="Calibri"),
+    'INCAPACIDAD': Font(size=9, bold=True, color="991B1B", name="Calibri"),
+    'LICENCIA': Font(size=9, bold=True, color="854D0E", name="Calibri"),
+    'PERMISO': Font(size=9, bold=True, color="9A3412", name="Calibri"),
+    'FERIADO': Font(size=9, bold=True, color="3730A3", name="Calibri"),
+    'DESCANSO': Font(size=9, color="94A3B8", name="Calibri"),
+}
+
+type_labels = {
+    'VACACION': 'VAC',
+    'INCAPACIDAD': 'INC',
+    'LICENCIA': 'LIC',
+    'PERMISO': 'PER',
+    'FERIADO': 'FER',
+    'DESCANSO': 'D',
+}
+
 thin_border = Border(
-    left=Side(style='thin', color='CCCCCC'),
-    right=Side(style='thin', color='CCCCCC'),
-    top=Side(style='thin', color='CCCCCC'),
-    bottom=Side(style='thin', color='CCCCCC'),
+    left=Side(style='thin', color='D1D5DB'),
+    right=Side(style='thin', color='D1D5DB'),
+    top=Side(style='thin', color='D1D5DB'),
+    bottom=Side(style='thin', color='D1D5DB'),
 )
 
-# Title
+# Staff colors for alternating columns
+staff_colors = [
+    PatternFill(start_color="F0FDF4", end_color="F0FDF4", fill_type="solid"),  # Green-50
+    PatternFill(start_color="EFF6FF", end_color="EFF6FF", fill_type="solid"),  # Blue-50
+    PatternFill(start_color="FDF4FF", end_color="FDF4FF", fill_type="solid"),  # Fuchsia-50
+    PatternFill(start_color="FFF7ED", end_color="FFF7ED", fill_type="solid"),  # Orange-50
+    PatternFill(start_color="F0FDFA", end_color="F0FDFA", fill_type="solid"),  # Teal-50
+    PatternFill(start_color="FEFCE8", end_color="FEFCE8", fill_type="solid"),  # Yellow-50
+    PatternFill(start_color="FFF1F2", end_color="FFF1F2", fill_type="solid"),  # Rose-50
+    PatternFill(start_color="ECFDF5", end_color="ECFDF5", fill_type="solid"),  # Emerald-50
+    PatternFill(start_color="F5F3FF", end_color="F5F3FF", fill_type="solid"),  # Violet-50
+    PatternFill(start_color="ECFEFF", end_color="ECFEFF", fill_type="solid"),  # Cyan-50
+]
+
+# Title row
 ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=1+len(data['staffInfo'])*3)
 title_cell = ws.cell(row=1, column=1, value=data['title'])
-title_cell.font = Font(bold=True, size=14, color="1A7A4C")
-title_cell.alignment = Alignment(horizontal='center')
+title_cell.font = Font(bold=True, size=16, color="0F766E", name="Calibri")
+title_cell.alignment = Alignment(horizontal='center', vertical='center')
+title_cell.fill = PatternFill(start_color="F0FDFA", end_color="F0FDFA", fill_type="solid")
 
-# Header row - Staff names
-row = 3
+# Credit row
+ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=1+len(data['staffInfo'])*3)
+credit_cell = ws.cell(row=2, column=1, value="Desarrollado por Alvaro Enrique Cascante Moraga  |  acascantem@netcom.com.pa")
+credit_cell.font = Font(size=9, italic=True, color="6B7280", name="Calibri")
+credit_cell.alignment = Alignment(horizontal='center')
+
+# Header row - Staff names with alternating colors
+row = 4
 ws.cell(row=row, column=1, value="HORARIO").font = header_font
 ws.cell(row=row, column=1).fill = header_fill
 ws.cell(row=row, column=1).alignment = Alignment(horizontal='center', vertical='center')
 ws.cell(row=row, column=1).border = thin_border
 
 col = 2
-for s in data['staffInfo']:
+for idx, s in enumerate(data['staffInfo']):
+    staff_fill = staff_colors[idx % len(staff_colors)]
     ws.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col+2)
     cell = ws.cell(row=row, column=col, value=s['name'])
-    cell.font = header_font
-    cell.fill = header_fill
+    cell.font = Font(bold=True, size=11, color="1E293B", name="Calibri")
+    cell.fill = staff_fill
     cell.alignment = Alignment(horizontal='center', vertical='center')
-    ws.cell(row=row, column=col+1).fill = header_fill
-    ws.cell(row=row, column=col+2).fill = header_fill
-    ws.cell(row=row, column=col).border = thin_border
-    ws.cell(row=row, column=col+1).border = thin_border
-    ws.cell(row=row, column=col+2).border = thin_border
+    for c in range(col, col+3):
+        ws.cell(row=row, column=c).fill = staff_fill
+        ws.cell(row=row, column=c).border = thin_border
     col += 3
 
-# Sub-header - Jornada type
-row = 4
+# Sub-header - Fin de semana type
+row = 5
 ws.cell(row=row, column=1, value="").fill = subheader_fill
 ws.cell(row=row, column=1).border = thin_border
 col = 2
-for s in data['staffInfo']:
+for idx, s in enumerate(data['staffInfo']):
+    staff_fill = staff_colors[idx % len(staff_colors)]
     ws.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col+2)
-    cell = ws.cell(row=row, column=col, value=s['jornada'] + " (" + str(s['targetHours']) + "h)")
-    cell.font = subheader_font
-    cell.fill = subheader_fill
+    fe_map = {'MIXTO': 'Mixto (alterna)', 'SABADO': 'Solo Sabados', 'DOMINGO': 'Solo Domingos'}
+    cell = ws.cell(row=row, column=col, value=fe_map.get(s['finDeSemana'], s['finDeSemana']))
+    cell.font = Font(size=8, color="0F766E", name="Calibri")
+    cell.fill = staff_fill
     cell.alignment = Alignment(horizontal='center')
-    ws.cell(row=row, column=col+1).fill = subheader_fill
-    ws.cell(row=row, column=col+2).fill = subheader_fill
-    ws.cell(row=row, column=col).border = thin_border
-    ws.cell(row=row, column=col+1).border = thin_border
-    ws.cell(row=row, column=col+2).border = thin_border
+    for c in range(col, col+3):
+        ws.cell(row=row, column=c).fill = staff_fill
+        ws.cell(row=row, column=c).border = thin_border
     col += 3
 
 # Sub-header 2 - Entry/Exit/Hours
-row = 5
+row = 6
 ws.cell(row=row, column=1, value="Fecha").font = bold_font
-ws.cell(row=row, column=1).fill = PatternFill(start_color="F0FDF4", end_color="F0FDF4", fill_type="solid")
+ws.cell(row=row, column=1).fill = PatternFill(start_color="E2E8F0", end_color="E2E8F0", fill_type="solid")
 ws.cell(row=row, column=1).border = thin_border
 ws.cell(row=row, column=1).alignment = Alignment(horizontal='center')
 col = 2
-for _ in data['staffInfo']:
+for idx, _ in enumerate(data['staffInfo']):
+    staff_fill = staff_colors[idx % len(staff_colors)]
     for label in ["Entrada", "Salida", "Horas"]:
         cell = ws.cell(row=row, column=col, value=label)
-        cell.font = Font(bold=True, size=8)
-        cell.fill = PatternFill(start_color="F0FDF4", end_color="F0FDF4", fill_type="solid")
+        cell.font = Font(bold=True, size=8, color="475569", name="Calibri")
+        cell.fill = staff_fill
         cell.alignment = Alignment(horizontal='center')
         cell.border = thin_border
         col += 1
 
 # Data rows
-row = 6
+row = 7
 for entry in data['data']:
     if entry.get('isTotal'):
         # Total row
@@ -234,13 +294,12 @@ for entry in data['data']:
         ws.cell(row=row, column=1).border = thin_border
         ws.cell(row=row, column=1).alignment = Alignment(horizontal='center')
         col = 2
-        for s in data['staffInfo']:
+        for idx, s in enumerate(data['staffInfo']):
             sd = entry['staffData'].get(s['id'], {})
             hours = sd.get('hours', 0)
-            ws.cell(row=row, column=col, value="").fill = total_fill
-            ws.cell(row=row, column=col).border = thin_border
-            ws.cell(row=row, column=col+1, value="").fill = total_fill
-            ws.cell(row=row, column=col+1).border = thin_border
+            for c in range(col, col+3):
+                ws.cell(row=row, column=c).fill = total_fill
+                ws.cell(row=row, column=c).border = thin_border
             cell = ws.cell(row=row, column=col+2, value=hours if hours else "")
             cell.font = total_font
             cell.fill = total_fill
@@ -249,91 +308,128 @@ for entry in data['data']:
             col += 3
         row += 1
         continue
-    
+
+    dow = entry.get('dow', 0)
     is_weekend = entry.get('isWeekend', False)
-    fill = weekend_fill if is_weekend else None
-    
+
+    # Date column with weekend highlighting
+    if dow == 0:
+        date_fill = sunday_fill
+        date_font_color = "DC2626"
+    elif dow == 6:
+        date_fill = saturday_fill
+        date_font_color = "2563EB"
+    elif is_weekend:
+        date_fill = weekend_fill
+        date_font_color = "000000"
+    else:
+        date_fill = None
+        date_font_color = "1E293B"
+
     date_cell = ws.cell(row=row, column=1, value=entry['dateLabel'])
-    date_cell.font = bold_font
+    date_cell.font = Font(bold=True, size=10, color=date_font_color, name="Calibri")
     date_cell.border = thin_border
     date_cell.alignment = Alignment(horizontal='center', vertical='center')
-    if fill:
-        date_cell.fill = fill
-    
+    if date_fill:
+        date_cell.fill = date_fill
+
     col = 2
-    for s in data['staffInfo']:
+    for idx, s in enumerate(data['staffInfo']):
         sd = entry['staffData'].get(s['id'], {})
         entry_type = sd.get('type', 'DESCANSO')
         et = sd.get('entryTime', '')
         xt = sd.get('exitTime', '')
         hrs = sd.get('hours', 0)
-        
-        type_colors = {
-            'VACACION': PatternFill(start_color="DCFCE7", end_color="DCFCE7", fill_type="solid"),
-            'INCAPACIDAD': PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid"),
-            'LICENCIA': PatternFill(start_color="FEF9C3", end_color="FEF9C3", fill_type="solid"),
-            'PERMISO': PatternFill(start_color="FFEDD5", end_color="FFEDD5", fill_type="solid"),
-            'FERIADO': PatternFill(start_color="DBEAFE", end_color="DBEAFE", fill_type="solid"),
-            'DESCANSO': PatternFill(start_color="F1F5F9", end_color="F1F5F9", fill_type="solid"),
-        }
-        type_labels = {
-            'VACACION': 'VAC',
-            'INCAPACIDAD': 'INC',
-            'LICENCIA': 'LIC',
-            'PERMISO': 'PER',
-            'FERIADO': 'FER',
-            'DESCANSO': 'D',
-        }
-        
+        is_manual = sd.get('isManual', False)
+
         type_fill = type_colors.get(entry_type)
-        
+        type_font = type_fonts.get(entry_type)
+
         if entry_type in type_labels:
             label = type_labels[entry_type]
-            c1 = ws.cell(row=row, column=col, value=label)
-            c1.font = Font(size=9, bold=True, color="666666")
-            c1.alignment = Alignment(horizontal='center', vertical='center')
-            c1.border = thin_border
-            if type_fill: c1.fill = type_fill
-            ws.cell(row=row, column=col+1, value="").border = thin_border
-            if type_fill: ws.cell(row=row, column=col+1).fill = type_fill
-            ws.cell(row=row, column=col+2, value="").border = thin_border
-            if type_fill: ws.cell(row=row, column=col+2).fill = type_fill
+            for c in range(col, col+3):
+                cell = ws.cell(row=row, column=c)
+                if type_fill: cell.fill = type_fill
+                cell.border = thin_border
+                cell.alignment = Alignment(horizontal='center', vertical='center')
+            ws.cell(row=row, column=col, value=label).font = type_font or Font(size=9, name="Calibri")
+            ws.cell(row=row, column=col+1, value="")
+            ws.cell(row=row, column=col+2, value="")
         else:
+            # NORMAL entry
+            staff_fill = staff_colors[idx % len(staff_colors)] if not is_weekend else None
+
             c1 = ws.cell(row=row, column=col, value=et)
             c1.font = normal_font
             c1.alignment = Alignment(horizontal='center', vertical='center')
             c1.border = thin_border
-            if fill: c1.fill = fill
-            
+            if is_weekend and dow == 6: c1.fill = saturday_fill
+            elif is_weekend and dow == 0: c1.fill = sunday_fill
+            elif staff_fill: c1.fill = staff_fill
+
             c2 = ws.cell(row=row, column=col+1, value=xt)
             c2.font = normal_font
             c2.alignment = Alignment(horizontal='center', vertical='center')
             c2.border = thin_border
-            if fill: c2.fill = fill
-            
+            if is_weekend and dow == 6: c2.fill = saturday_fill
+            elif is_weekend and dow == 0: c2.fill = sunday_fill
+            elif staff_fill: c2.fill = staff_fill
+
             c3 = ws.cell(row=row, column=col+2, value=hrs if hrs else "")
-            c3.font = Font(size=9, bold=True, color="1A7A4C")
+            c3.font = hours_font
             c3.alignment = Alignment(horizontal='center', vertical='center')
             c3.border = thin_border
-            if fill: c3.fill = fill
-        
+            if is_weekend and dow == 6: c3.fill = saturday_fill
+            elif is_weekend and dow == 0: c3.fill = sunday_fill
+            elif staff_fill: c3.fill = staff_fill
+
+            if is_manual:
+                c1.font = Font(size=10, name="Calibri", color="B45309")
+                c2.font = Font(size=10, name="Calibri", color="B45309")
+
         col += 3
     row += 1
 
+# Month total row
+ws.cell(row=row+1, column=1, value="TOTAL MES").font = Font(bold=True, size=11, color="0F766E", name="Calibri")
+ws.cell(row=row+1, column=1).fill = PatternFill(start_color="CCFBF1", end_color="CCFBF1", fill_type="solid")
+ws.cell(row=row+1, column=1).border = thin_border
+ws.cell(row=row+1, column=1).alignment = Alignment(horizontal='center')
+col = 2
+for s in data['staffInfo']:
+    mt = data.get('monthTotals', {}).get(s['id'], 0)
+    for c in range(col, col+2):
+        ws.cell(row=row+1, column=c).fill = PatternFill(start_color="CCFBF1", end_color="CCFBF1", fill_type="solid")
+        ws.cell(row=row+1, column=c).border = thin_border
+    cell = ws.cell(row=row+1, column=col+2, value=mt if mt else "")
+    cell.font = Font(bold=True, size=11, color="0F766E", name="Calibri")
+    cell.fill = PatternFill(start_color="CCFBF1", end_color="CCFBF1", fill_type="solid")
+    cell.alignment = Alignment(horizontal='center')
+    cell.border = thin_border
+    col += 3
+
+# Footer credit row
+footer_row = row + 3
+ws.merge_cells(start_row=footer_row, start_column=1, end_row=footer_row, end_column=1+len(data['staffInfo'])*3)
+ws.cell(row=footer_row, column=1, value="Desarrollado por Alvaro Enrique Cascante Moraga  |  acascantem@netcom.com.pa").font = Font(size=8, italic=True, color="94A3B8", name="Calibri")
+
 # Column widths
-ws.column_dimensions['A'].width = 12
+ws.column_dimensions['A'].width = 14
 col_idx = 2
 for s in data['staffInfo']:
-    name_width = max(len(s['name']) // 3 + 1, 5)
+    name_width = max(len(s['name']) // 3 + 1, 7)
     for i in range(3):
         ws.column_dimensions[get_column_letter(col_idx)].width = name_width
         col_idx += 1
 
 # Row heights
-ws.row_dimensions[1].height = 25
-ws.row_dimensions[3].height = 22
-ws.row_dimensions[4].height = 18
+ws.row_dimensions[1].height = 30
+ws.row_dimensions[4].height = 24
 ws.row_dimensions[5].height = 18
+ws.row_dimensions[6].height = 18
+
+# Freeze panes
+ws.freeze_panes = 'B7'
 
 wb.save('${xlsxPath}')
 print("OK")
@@ -343,13 +439,12 @@ print("OK")
       execSync(`python3 -c '${pythonScript.replace(/'/g, "'\"'\"'")}'`, { timeout: 30000 });
     } catch (e) {
       console.error('Python error:', e);
-      // Fallback: use the HTML-based approach
       return generateHtmlExport(entries, staffList, yearNum, monthNum, monthNames, dayNames, entryMap, daysInMonth);
     }
 
     // Read the generated file
     const fileBuffer = fs.readFileSync(xlsxPath);
-    
+
     // Clean up temp files
     try { fs.unlinkSync(jsonPath); } catch {}
     try { fs.unlinkSync(xlsxPath); } catch {}
@@ -376,18 +471,20 @@ function generateHtmlExport(
   entryMap: Map<string, Map<string, any>>,
   daysInMonth: number
 ) {
-  const title = `Horario Staff ${monthNames[monthNum - 1]} ${yearNum}`;
+  const title = `Gestor de Horarios - STAFF - ${monthNames[monthNum - 1]} ${yearNum}`;
   let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
   <head><meta charset="UTF-8"></head><body>
-  <h2>${title}</h2><table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;">`;
-  
-  html += '<tr style="background-color:#1a7a4c;color:white;font-weight:bold;"><td>Fecha</td>';
+  <h2>${title}</h2>
+  <p style="font-size:10px;color:gray;">Desarrollado por Alvaro Enrique Cascante Moraga | acascantem@netcom.com.pa</p>
+  <table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;">`;
+
+  html += '<tr style="background-color:#0F766E;color:white;font-weight:bold;"><td>Fecha</td>';
   for (const s of staffList) {
     html += `<td colspan="3" style="text-align:center;">${s.nombre} ${s.apellido}</td>`;
   }
   html += '</tr>';
 
-  html += '<tr style="background-color:#f0fdf4;font-weight:bold;"><td></td>';
+  html += '<tr style="background-color:#CCFBF1;font-weight:bold;"><td></td>';
   for (const s of staffList) {
     html += '<td>Entrada</td><td>Salida</td><td>Horas</td>';
   }
@@ -398,28 +495,29 @@ function generateHtmlExport(
     const date = new Date(dateStr + 'T12:00:00');
     const dow = date.getDay();
     const isWeekend = dow === 0 || dow === 6;
-    const style = isWeekend ? 'style="background-color:#f0f9ff;"' : '';
-    
+    const bgColor = dow === 0 ? '#FEE2E2' : dow === 6 ? '#DBEAFE' : isWeekend ? '#FEF3C7' : '';
+    const style = bgColor ? `style="background-color:${bgColor};"` : '';
+
     html += `<tr ${style}><td>${dayNames[dow]} ${day}</td>`;
     for (const s of staffList) {
       const entry = entryMap.get(dateStr)?.get(s.id);
       if (entry && entry.type === 'NORMAL') {
-        html += `<td>${entry.entryTime}</td><td>${entry.exitTime}</td><td>${entry.hours}</td>`;
+        html += `<td>${entry.entryTime}</td><td>${entry.exitTime}</td><td style="color:#0F766E;font-weight:bold;">${entry.hours}</td>`;
       } else if (entry && entry.type === 'DESCANSO') {
-        html += '<td>D</td><td></td><td></td>';
+        html += '<td style="color:#94A3B8;">D</td><td></td><td></td>';
       } else if (entry) {
         const labels: any = { VACACION: 'VAC', INCAPACIDAD: 'INC', LICENCIA: 'LIC', PERMISO: 'PER', FERIADO: 'FER' };
-        html += `<td>${labels[entry.type] || entry.type}</td><td></td><td></td>`;
+        html += `<td style="font-weight:bold;">${labels[entry.type] || entry.type}</td><td></td><td></td>`;
       } else {
         html += '<td>-</td><td></td><td></td>';
       }
     }
     html += '</tr>';
   }
-  
+
   html += '</table></body></html>';
   const blob = Buffer.from(html, 'utf-8');
-  
+
   return new NextResponse(blob, {
     headers: {
       'Content-Type': 'application/vnd.ms-excel',
