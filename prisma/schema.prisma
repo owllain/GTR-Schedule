@@ -1,0 +1,60 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Staff {
+  id                    String   @id @default(cuid())
+  nombre                String
+  apellido              String
+  jornadaPreferente     String   @default("DIURNA") // DIURNA, MIXTA, NOCTURNA
+  finDeSemanaPreferente String   @default("MIXTO")  // MIXTO, SABADO, DOMINGO
+  horaEntrada           String   @default("08:00")  // Default entry time
+  horaSalida            String   @default("17:00")  // Default exit time
+  horaEntradaSabado     String   @default("08:00")  // Saturday entry
+  horaSalidaSabado      String   @default("13:00")  // Saturday exit
+  horaEntradaDomingo    String   @default("08:00")  // Sunday entry
+  horaSalidaDomingo     String   @default("18:00")  // Sunday exit
+  activo                Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  scheduleEntries ScheduleEntry[]
+  novedades       Novedad[]
+}
+
+model ScheduleEntry {
+  id        String   @id @default(cuid())
+  staffId   String
+  date      String   // YYYY-MM-DD format
+  entryTime String   // HH:mm format
+  exitTime  String   // HH:mm format
+  hours     Float    // Calculated hours
+  type      String   @default("NORMAL") // NORMAL, VACACION, INCAPACIDAD, LICENCIA, PERMISO, FERIADO, DESCANSO
+  notes     String?
+  isWeekend Boolean  @default(false)
+  isManual  Boolean  @default(false) // If manually edited
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  staff Staff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, date])
+}
+
+model Novedad {
+  id          String   @id @default(cuid())
+  staffId     String
+  startDate   String   // YYYY-MM-DD
+  endDate     String   // YYYY-MM-DD
+  type        String   // VACACION, INCAPACIDAD, LICENCIA, PERMISO, FERIADO
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  staff Staff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+}
