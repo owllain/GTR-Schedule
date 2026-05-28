@@ -63,10 +63,16 @@ export function StaffManager({ onRefresh }: StaffManagerProps) {
   const fetchStaff = useCallback(async () => {
     try {
       const res = await fetch('/api/staff')
-      const data = await res.json()
+      const data = await res.json().catch(() => null)
+
+      if (!res.ok) {
+        throw new Error((data && typeof data === 'object' && 'error' in data ? String((data as { error?: string }).error) : '') || 'No se pudo cargar el personal')
+      }
+
       setStaff(Array.isArray(data) ? data : [])
-    } catch {
-      toast({ title: 'Error', description: 'No se pudo cargar el personal', variant: 'destructive' })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo cargar el personal'
+      toast({ title: 'Error', description: message, variant: 'destructive' })
     } finally {
       setLoading(false)
     }
@@ -95,28 +101,40 @@ export function StaffManager({ onRefresh }: StaffManagerProps) {
         proformaId: formData.proformaId || null,
       }
 
+      let res: Response
+      let successMessage = ''
+
       if (editingStaff) {
-        await fetch('/api/staff', {
+        res = await fetch('/api/staff', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: editingStaff.id, ...payload }),
         })
-        toast({ title: 'Actualizado', description: `${formData.nombre} ${formData.apellido} actualizado` })
+        successMessage = `${formData.nombre} ${formData.apellido} actualizado`
       } else {
-        await fetch('/api/staff', {
+        res = await fetch('/api/staff', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         })
-        toast({ title: 'Creado', description: `${formData.nombre} ${formData.apellido} agregado` })
+        successMessage = `${formData.nombre} ${formData.apellido} agregado`
       }
+
+      const data = await res.json().catch(() => null)
+
+      if (!res.ok) {
+        throw new Error((data && typeof data === 'object' && 'error' in data ? String((data as { error?: string }).error) : '') || 'No se pudo guardar')
+      }
+
+      toast({ title: editingStaff ? 'Actualizado' : 'Creado', description: successMessage })
       setDialogOpen(false)
       setEditingStaff(null)
       resetForm()
-      fetchStaff()
+      await fetchStaff()
       onRefresh()
-    } catch {
-      toast({ title: 'Error', description: 'No se pudo guardar', variant: 'destructive' })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo guardar'
+      toast({ title: 'Error', description: message, variant: 'destructive' })
     }
   }
 
@@ -134,12 +152,19 @@ export function StaffManager({ onRefresh }: StaffManagerProps) {
   const handleDelete = async (id: string, nombre: string) => {
     if (!confirm(`¿Está seguro de eliminar a ${nombre}?`)) return
     try {
-      await fetch(`/api/staff?id=${id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/staff?id=${id}`, { method: 'DELETE' })
+      const data = await res.json().catch(() => null)
+
+      if (!res.ok) {
+        throw new Error((data && typeof data === 'object' && 'error' in data ? String((data as { error?: string }).error) : '') || 'No se pudo eliminar')
+      }
+
       toast({ title: 'Eliminado', description: `${nombre} eliminado` })
-      fetchStaff()
+      await fetchStaff()
       onRefresh()
-    } catch {
-      toast({ title: 'Error', description: 'No se pudo eliminar', variant: 'destructive' })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo eliminar'
+      toast({ title: 'Error', description: message, variant: 'destructive' })
     }
   }
 
@@ -164,12 +189,16 @@ export function StaffManager({ onRefresh }: StaffManagerProps) {
 
       const data = await res.json()
 
+      if (!res.ok) {
+        throw new Error((data && typeof data === 'object' && 'error' in data ? String((data as { error?: string }).error) : '') || 'No se pudo importar el archivo CSV')
+      }
+
       if (data.created > 0) {
         toast({
           title: 'Importación exitosa',
           description: `${data.created} empleado(s) importado(s)${data.errors > 0 ? `, ${data.errors} error(es)` : ''}`,
         })
-        fetchStaff()
+        await fetchStaff()
         onRefresh()
       } else {
         toast({
@@ -182,8 +211,9 @@ export function StaffManager({ onRefresh }: StaffManagerProps) {
       if (data.details?.length > 0) {
         console.log('Import details:', data.details)
       }
-    } catch {
-      toast({ title: 'Error', description: 'No se pudo importar el archivo CSV', variant: 'destructive' })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo importar el archivo CSV'
+      toast({ title: 'Error', description: message, variant: 'destructive' })
     } finally {
       setImporting(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
