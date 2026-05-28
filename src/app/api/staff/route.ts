@@ -12,7 +12,8 @@ export async function GET() {
     return NextResponse.json(staff);
   } catch (error) {
     console.error('Error fetching staff:', error);
-    return NextResponse.json({ error: 'Error fetching staff' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Error fetching staff';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -39,7 +40,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(staff, { status: 201 });
   } catch (error) {
     console.error('Error creating staff:', error);
-    return NextResponse.json({ error: 'Error creating staff' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Error creating staff';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -67,7 +69,8 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json(staff);
   } catch (error) {
     console.error('Error updating staff:', error);
-    return NextResponse.json({ error: 'Error updating staff' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Error updating staff';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -89,6 +92,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json(staff);
   } catch (error) {
     console.error('Error deleting staff:', error);
-    return NextResponse.json({ error: 'Error deleting staff' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Error deleting staff';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
