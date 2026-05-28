@@ -272,7 +272,28 @@ export function ProformasManager({ onRefresh }: ProformasManagerProps) {
     try {
       const res = await fetch('/api/proformas')
       const data = await res.json()
-      setProformas(Array.isArray(data) ? data : [])
+      const fetched = Array.isArray(data) ? data : []
+      setProformas(fetched)
+
+      // Auto-seed requested coverage proformas if missing
+      const existingNames = new Set(fetched.map((p: Proforma) => p.nombre.trim().toLowerCase()))
+      const missing = requestedCoverageProformas.filter(p => !existingNames.has(p.nombre.trim().toLowerCase()))
+      if (missing.length > 0) {
+        for (const p of missing) {
+          await fetch('/api/proformas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              nombre: p.nombre,
+              descripcion: p.descripcion,
+              entradas: p.entradas,
+            }),
+          })
+        }
+        const refetch = await fetch('/api/proformas')
+        const refetchData = await refetch.json()
+        setProformas(Array.isArray(refetchData) ? refetchData : fetched)
+      }
     } catch {
       toast({ title: 'Error', description: 'No se pudieron cargar las proformas', variant: 'destructive' })
     } finally {
@@ -437,7 +458,7 @@ export function ProformasManager({ onRefresh }: ProformasManagerProps) {
                   Crear Proforma
                 </Button>
               </DialogTrigger>
-              <DialogContent className="w-[96vw] max-w-[1100px] max-h-[90vh] overflow-y-auto">
+              <DialogContent className="w-[96vw] sm:max-w-[1100px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editingProforma ? 'Editar Proforma' : 'Crear Proforma'}</DialogTitle>
               </DialogHeader>

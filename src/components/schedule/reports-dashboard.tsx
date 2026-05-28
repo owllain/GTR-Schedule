@@ -269,56 +269,40 @@ export function ReportsDashboard() {
 
   // ── Export handlers ──────────────────────────────────────────
 
-  const exportMonth = () => {
+  const exportMonth = async () => {
     if (!monthReport) return
-    exportReportXlsx(
-      { type: 'month', year, month },
-      `reporte_mensual_${MONTHS[month - 1]}_${year}.xlsx`
-    ).catch(() => {
-      exportCSV(
-        `reporte_mensual_${MONTHS[month - 1]}_${year}.csv`,
-        ['Empleado', 'Proforma', 'FDS', 'Total Horas', 'Días Laborados', 'Descanso', 'Vacación', 'Incapacidad', 'Licencia', 'Permiso', 'Feriado', 'Manuales', 'Semanas OK'],
-        monthReport.staffReports.map(s => [
-          s.nombre, s.proforma, fdsLabel[s.finDeSemana] ?? s.finDeSemana,
-          s.totalHoras, s.diasLaborados, s.diasDescanso, s.diasVacacion,
-          s.diasIncapacidad, s.diasLicencia, s.diasPermiso, s.diasFeriado,
-          s.diasManuales, `${s.semanasCumplen}/${s.totalSemanas}`,
-        ])
+    try {
+      await exportReportXlsx(
+        { type: 'month', year, month },
+        `reporte_mensual_${MONTHS[month - 1]}_${year}.xlsx`
       )
-    })
+    } catch (e) {
+      toast({ title: 'Error', description: (e as Error).message, variant: 'destructive' })
+    }
   }
 
-  const exportStaff = () => {
+  const exportStaff = async () => {
     if (!staffReport || !selectedStaff) return
-    exportReportXlsx(
-      { type: 'staff', staffId: selectedStaff, startDate, endDate },
-      `historial_${staffReport.staff.nombre.replace(/ /g, '_')}.xlsx`
-    ).catch(() => {
-      exportCSV(
-        `historial_${staffReport.staff.nombre.replace(/ /g, '_')}.csv`,
-        ['Fecha', 'Entrada', 'Salida', 'Horas', 'Tipo', 'Manual', 'Notas'],
-        staffReport.detalle.map(d => [
-          d.fecha, d.entrada, d.salida, d.horas,
-          typeLabels[d.tipo] ?? d.tipo, d.manual ? 'Sí' : 'No', d.notas ?? '',
-        ])
+    try {
+      await exportReportXlsx(
+        { type: 'staff', staffId: selectedStaff, startDate, endDate },
+        `historial_${staffReport.staff.nombre.replace(/ /g, '_')}.xlsx`
       )
-    })
+    } catch (e) {
+      toast({ title: 'Error', description: (e as Error).message, variant: 'destructive' })
+    }
   }
 
-  const exportComparative = () => {
+  const exportComparative = async () => {
     if (!comparativeReport) return
-    exportReportXlsx(
-      { type: 'comparative', year, month },
-      `comparativo_${MONTHS[month - 1]}_${year}.xlsx`
-    ).catch(() => {
-      const headers = ['Empleado', 'Proforma', 'Total Horas', 'Meta', 'Cumplimiento %',
-        ...comparativeReport.weeks.map(w => `Sem ${w}`)]
-      const rows = comparativeReport.comparative.map(c => [
-        c.nombre, c.proforma, c.totalHoras, c.metaMensual, `${c.cumplimiento}%`,
-        ...comparativeReport.weeks.map(w => c.weekData.find(wd => wd.semana === w)?.horas ?? 0),
-      ])
-      exportCSV(`comparativo_${MONTHS[month - 1]}_${year}.csv`, headers, rows)
-    })
+    try {
+      await exportReportXlsx(
+        { type: 'comparative', year, month },
+        `comparativo_${MONTHS[month - 1]}_${year}.xlsx`
+      )
+    } catch (e) {
+      toast({ title: 'Error', description: (e as Error).message, variant: 'destructive' })
+    }
   }
 
   // ── Render ───────────────────────────────────────────────────
