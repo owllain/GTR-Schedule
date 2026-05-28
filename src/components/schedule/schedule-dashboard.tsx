@@ -750,7 +750,7 @@ export function ScheduleDashboard({ onRefresh }: ScheduleDashboardProps) {
               <Table className="text-xs">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="sticky left-0 bg-white z-10 min-w-[80px]">Fecha</TableHead>
+                    <TableHead className="sticky left-0 bg-slate-200 text-slate-700 z-10 min-w-[80px]">Fecha</TableHead>
                     {staffList.map(s => (
                       <TableHead key={s.id} className="text-center min-w-[120px]">
                         {s.nombre} {s.apellido}
@@ -809,7 +809,7 @@ export function ScheduleDashboard({ onRefresh }: ScheduleDashboardProps) {
 
                       rows.push(
                         <TableRow key={dateStr} className={`${isWeekend ? (dow === 0 ? 'bg-red-50/30' : 'bg-blue-50/30') : ''} hover:bg-slate-50/50`}>
-                          <TableCell className={`sticky left-0 z-10 font-medium ${isWeekend ? (dow === 0 ? 'bg-red-50/30' : 'bg-blue-50/30') : 'bg-white'}`}>
+                          <TableCell className={`sticky left-0 z-10 font-medium ${isWeekend ? (dow === 0 ? 'bg-red-100/40' : 'bg-blue-100/40') : 'bg-slate-100'}`}>
                             <div className="flex flex-col">
                               <span className={`text-xs ${dow === 0 ? 'text-red-500' : dow === 6 ? 'text-blue-500' : 'text-slate-500'}`}>
                                 {dayNames[dow]}

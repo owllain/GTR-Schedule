@@ -502,7 +502,8 @@ function generateHtmlExport(
     const bgColor = dow === 0 ? '#FEE2E2' : dow === 6 ? '#DBEAFE' : isWeekend ? '#FEF3C7' : '';
     const style = bgColor ? `style="background-color:${bgColor};"` : '';
 
-    html += `<tr ${style}><td>${dayNames[dow]} ${day}</td>`;
+    const dayLabel = `${dayNames[dow]} ${String(day).padStart(2, '0')}`
+    html += `<tr ${style}><td style="mso-number-format:'\\@'; background-color:#E2E8F0; font-weight:600;">'${dayLabel}</td>`;
     for (const s of staffList) {
       const entry = entryMap.get(dateStr)?.get(s.id);
       if (entry && entry.type === 'NORMAL') {
