@@ -33,3 +33,27 @@ Stage Summary:
 - CSV import for staff
 - Enhanced Excel export with modern colors and credit line
 - No default staff data (clean start)
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Adapt project for Vercel deployment with Prisma PostgreSQL
+
+Work Log:
+- Updated prisma/schema.prisma: changed provider from "sqlite" to "postgresql", added directUrl = env("POSTGRES_URL") for Vercel connection pooling
+- Updated next.config.ts: removed output: "standalone" (Vercel handles build output), added serverExternalPackages for @prisma/client and prisma
+- Updated package.json: added "postinstall": "prisma generate" for Vercel auto-generation, added "db:migrate:deploy" script, simplified "build" to just "next build"
+- Updated .env: replaced SQLite file URL with PostgreSQL placeholder URLs (DATABASE_URL for pooled, POSTGRES_URL for direct)
+- Created .env.example: documented the required environment variables
+- Created vercel.json: configured buildCommand, installCommand, and framework
+- Updated db.ts: added development warning logs for better debugging
+- Ran prisma generate successfully with PostgreSQL provider
+- Lint checks pass
+
+Stage Summary:
+- Project fully adapted for Vercel + Prisma PostgreSQL deployment
+- Schema uses DATABASE_URL (pooled) and POSTGRES_URL (direct) env vars
+- Vercel build will auto-run prisma generate via postinstall
+- Server external packages configured for proper Prisma bundling
+- Local development requires real DATABASE_URL/POSTGRES_URL values (placeholder URLs will cause API errors)
+- To deploy: push to Vercel, ensure DATABASE_URL and POSTGRES_URL are set in Vercel environment variables, then run prisma db push or prisma migrate deploy
