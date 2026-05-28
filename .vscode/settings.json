@@ -1,0 +1,12 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^cd \"c:\\\\Users\\\\laind\\\\Downloads\\\\workspace-a5be8e1c-6e5e-4ed3-b7b3-b57c487ebe16 \\(2\\)\\\\gtrHorairo\"; git add src/components/schedule/staff-manager\\.tsx; git commit -m \"Fix staff CRUD feedback and refresh handling\"; git push origin main$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^powershell -NoProfile -Command \"Set-Location 'c:\\\\Users\\\\laind\\\\Downloads\\\\workspace-a5be8e1c-6e5e-4ed3-b7b3-b57c487ebe16 \\(2\\)\\\\gtrHorairo'; git status --short --branch\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
