@@ -158,6 +158,86 @@ const defaultProformas = [
       { diaSemana: 6, horaEntrada: '18:00', horaSalida: '00:00', esDescanso: false },
     ],
   },
+  // ── Cobertura Domingo (8-4 / 9-4) ───────────────────────────
+  {
+    nombre: 'Cobertura Domingo',
+    descripcion: 'L-Mi 8:00-4:00pm, J-V 9:00-4:00pm, Sáb descanso, Dom 8:00-6:00pm',
+    entradas: [
+      { diaSemana: 0, horaEntrada: '08:00', horaSalida: '18:00', esDescanso: false },
+      { diaSemana: 1, horaEntrada: '08:00', horaSalida: '16:00', esDescanso: false },
+      { diaSemana: 2, horaEntrada: '08:00', horaSalida: '16:00', esDescanso: false },
+      { diaSemana: 3, horaEntrada: '08:00', horaSalida: '16:00', esDescanso: false },
+      { diaSemana: 4, horaEntrada: '09:00', horaSalida: '16:00', esDescanso: false },
+      { diaSemana: 5, horaEntrada: '09:00', horaSalida: '16:00', esDescanso: false },
+      { diaSemana: 6, horaEntrada: '', horaSalida: '', esDescanso: true },
+    ],
+  },
+  {
+    nombre: 'Cobertura Sábado',
+    descripcion: 'L-Mi 8:00-4:00pm, J-V 9:00-4:00pm, Sáb 8:00-6:00pm, Dom descanso',
+    entradas: [
+      { diaSemana: 0, horaEntrada: '', horaSalida: '', esDescanso: true },
+      { diaSemana: 1, horaEntrada: '08:00', horaSalida: '16:00', esDescanso: false },
+      { diaSemana: 2, horaEntrada: '08:00', horaSalida: '16:00', esDescanso: false },
+      { diaSemana: 3, horaEntrada: '08:00', horaSalida: '16:00', esDescanso: false },
+      { diaSemana: 4, horaEntrada: '09:00', horaSalida: '16:00', esDescanso: false },
+      { diaSemana: 5, horaEntrada: '09:00', horaSalida: '16:00', esDescanso: false },
+      { diaSemana: 6, horaEntrada: '08:00', horaSalida: '18:00', esDescanso: false },
+    ],
+  },
+  {
+    nombre: 'Cobertura Domingo (L-Mar 9-4)',
+    descripcion: 'L-Mar 9:00-4:00pm, Mi-V 8:00-4:00pm, Sáb descanso, Dom 8:00-6:00pm',
+    entradas: [
+      { diaSemana: 0, horaEntrada: '08:00', horaSalida: '18:00', esDescanso: false },
+      { diaSemana: 1, horaEntrada: '09:00', horaSalida: '16:00', esDescanso: false },
+      { diaSemana: 2, horaEntrada: '09:00', horaSalida: '16:00', esDescanso: false },
+      { diaSemana: 3, horaEntrada: '08:00', horaSalida: '16:00', esDescanso: false },
+      { diaSemana: 4, horaEntrada: '08:00', horaSalida: '16:00', esDescanso: false },
+      { diaSemana: 5, horaEntrada: '08:00', horaSalida: '16:00', esDescanso: false },
+      { diaSemana: 6, horaEntrada: '', horaSalida: '', esDescanso: true },
+    ],
+  },
+  {
+    nombre: 'Cobertura Sábado (L-Mar 9-4)',
+    descripcion: 'L-Mar 9:00-4:00pm, Mi-V 8:00-4:00pm, Sáb 8:00-6:00pm, Dom descanso',
+    entradas: [
+      { diaSemana: 0, horaEntrada: '', horaSalida: '', esDescanso: true },
+      { diaSemana: 1, horaEntrada: '09:00', horaSalida: '16:00', esDescanso: false },
+      { diaSemana: 2, horaEntrada: '09:00', horaSalida: '16:00', esDescanso: false },
+      { diaSemana: 3, horaEntrada: '08:00', horaSalida: '16:00', esDescanso: false },
+      { diaSemana: 4, horaEntrada: '08:00', horaSalida: '16:00', esDescanso: false },
+      { diaSemana: 5, horaEntrada: '08:00', horaSalida: '16:00', esDescanso: false },
+      { diaSemana: 6, horaEntrada: '08:00', horaSalida: '18:00', esDescanso: false },
+    ],
+  },
+  // ── Cobertura entre semana (8-6 / 9-6) ───────────────────────
+  {
+    nombre: 'Cobertura entre semana',
+    descripcion: 'L-Mi 8:00-6:00pm, J-V 9:00-6:00pm, S-D libre',
+    entradas: [
+      { diaSemana: 0, horaEntrada: '', horaSalida: '', esDescanso: true },
+      { diaSemana: 1, horaEntrada: '08:00', horaSalida: '18:00', esDescanso: false },
+      { diaSemana: 2, horaEntrada: '08:00', horaSalida: '18:00', esDescanso: false },
+      { diaSemana: 3, horaEntrada: '08:00', horaSalida: '18:00', esDescanso: false },
+      { diaSemana: 4, horaEntrada: '09:00', horaSalida: '18:00', esDescanso: false },
+      { diaSemana: 5, horaEntrada: '09:00', horaSalida: '18:00', esDescanso: false },
+      { diaSemana: 6, horaEntrada: '', horaSalida: '', esDescanso: true },
+    ],
+  },
+  {
+    nombre: 'Cobertura entre semana (L-Mar 9-6)',
+    descripcion: 'L-Mar 9:00-6:00pm, Mi-V 8:00-6:00pm, S-D libre',
+    entradas: [
+      { diaSemana: 0, horaEntrada: '', horaSalida: '', esDescanso: true },
+      { diaSemana: 1, horaEntrada: '09:00', horaSalida: '18:00', esDescanso: false },
+      { diaSemana: 2, horaEntrada: '09:00', horaSalida: '18:00', esDescanso: false },
+      { diaSemana: 3, horaEntrada: '08:00', horaSalida: '18:00', esDescanso: false },
+      { diaSemana: 4, horaEntrada: '08:00', horaSalida: '18:00', esDescanso: false },
+      { diaSemana: 5, horaEntrada: '08:00', horaSalida: '18:00', esDescanso: false },
+      { diaSemana: 6, horaEntrada: '', horaSalida: '', esDescanso: true },
+    ],
+  },
 ]
 
 function calculateWeeklyHours(entradas: ProformaEntry[]): number {
@@ -310,7 +390,7 @@ export function ProformasManager({ onRefresh }: ProformasManagerProps) {
                 Crear Proforma
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="w-[min(96vw,1100px)] max-w-none max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editingProforma ? 'Editar Proforma' : 'Crear Proforma'}</DialogTitle>
               </DialogHeader>

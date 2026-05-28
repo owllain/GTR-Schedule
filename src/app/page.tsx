@@ -6,7 +6,8 @@ import { StaffManager } from '@/components/schedule/staff-manager'
 import { ScheduleDashboard } from '@/components/schedule/schedule-dashboard'
 import { NovedadesManager } from '@/components/schedule/novedades-manager'
 import { ProformasManager } from '@/components/schedule/proformas-manager'
-import { Users, Calendar, AlertCircle, LayoutTemplate, Sparkles, ShieldCheck, Clock3, ArrowRight } from 'lucide-react'
+import { ReportsDashboard } from '@/components/schedule/reports-dashboard'
+import { Users, Calendar, AlertCircle, LayoutTemplate, Sparkles, ShieldCheck, Clock3, ArrowRight, BarChart3 } from 'lucide-react'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -137,7 +138,7 @@ export default function Home() {
         </section>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full max-w-xl grid-cols-4 h-auto bg-slate-100/80 p-1">
+          <TabsList className="grid w-full max-w-3xl grid-cols-5 h-auto bg-slate-100/80 p-1">
             <TabsTrigger value="dashboard" className="gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-teal-700 text-xs sm:text-sm">
               <Calendar className="w-4 h-4" />
               <span className="hidden sm:inline">Horarios</span>
@@ -153,6 +154,10 @@ export default function Home() {
             <TabsTrigger value="novedades" className="gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-teal-700 text-xs sm:text-sm">
               <AlertCircle className="w-4 h-4" />
               <span className="hidden sm:inline">Novedades</span>
+            </TabsTrigger>
+            <TabsTrigger value="reportes" className="gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-teal-700 text-xs sm:text-sm">
+              <BarChart3 className="w-4 h-4" />
+              <span className="hidden sm:inline">Reportes</span>
             </TabsTrigger>
           </TabsList>
 
@@ -170,6 +175,10 @@ export default function Home() {
 
           <TabsContent value="novedades">
             <NovedadesManager onRefresh={handleRefresh} />
+          </TabsContent>
+
+          <TabsContent value="reportes">
+            <ReportsDashboard />
           </TabsContent>
         </Tabs>
       </main>
