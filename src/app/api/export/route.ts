@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
       const weekNum = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
 
       const row: any = {
-        dateLabel: `${dayNames[dow]} ${day}`,
+        dateLabel: `${dayNames[dow]} ${String(day).padStart(2, '0')}`,
         fullDate: dateStr,
         isWeekend,
         weekNum,
@@ -162,6 +162,7 @@ total_font = Font(bold=True, size=10, color="0F766E", name="Calibri")
 weekend_fill = PatternFill(start_color="FEF3C7", end_color="FEF3C7", fill_type="solid")  # Amber-100
 saturday_fill = PatternFill(start_color="DBEAFE", end_color="DBEAFE", fill_type="solid")  # Blue-100
 sunday_fill = PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid")  # Red-100
+date_col_fill = PatternFill(start_color="E2E8F0", end_color="E2E8F0", fill_type="solid")  # Slate-200
 normal_font = Font(size=10, name="Calibri")
 bold_font = Font(bold=True, size=10, name="Calibri")
 small_font = Font(size=8, color="6B7280", name="Calibri")
@@ -270,7 +271,8 @@ for idx, s in enumerate(data['staffInfo']):
 # Sub-header 2 - Entry/Exit/Hours
 row = 6
 ws.cell(row=row, column=1, value="Fecha").font = bold_font
-ws.cell(row=row, column=1).fill = PatternFill(start_color="E2E8F0", end_color="E2E8F0", fill_type="solid")
+ws.cell(row=row, column=1).fill = PatternFill(start_color="94A3B8", end_color="94A3B8", fill_type="solid")
+ws.cell(row=row, column=1).font = Font(bold=True, size=10, color="FFFFFF", name="Calibri")
 ws.cell(row=row, column=1).border = thin_border
 ws.cell(row=row, column=1).alignment = Alignment(horizontal='center')
 col = 2
@@ -323,7 +325,7 @@ for entry in data['data']:
         date_fill = weekend_fill
         date_font_color = "000000"
     else:
-        date_fill = None
+        date_fill = date_col_fill
         date_font_color = "1E293B"
 
     # Force text format to prevent Excel auto-converting labels like "Mar 5"
