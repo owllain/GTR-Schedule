@@ -326,10 +326,12 @@ for entry in data['data']:
         date_fill = None
         date_font_color = "1E293B"
 
-    date_cell = ws.cell(row=row, column=1, value=entry['dateLabel'])
+    # Force text format to prevent Excel auto-converting labels like "Mar 5"
+    date_cell = ws.cell(row=row, column=1, value="'" + str(entry['dateLabel']))
     date_cell.font = Font(bold=True, size=10, color=date_font_color, name="Calibri")
     date_cell.border = thin_border
     date_cell.alignment = Alignment(horizontal='center', vertical='center')
+    date_cell.number_format = '@'
     if date_fill:
         date_cell.fill = date_fill
 
