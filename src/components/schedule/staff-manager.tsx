@@ -221,8 +221,17 @@ export function StaffManager({ onRefresh }: StaffManagerProps) {
   }
 
   const handleDownloadTemplate = () => {
-    const csv = '\uFEFFnombre,apellido,finDeSemanaPreferente,proforma\nJosé,Castro,MIXTO,Estándar 48h (sin fin de semana)\nMaría,Lozano,DOMINGO,Con Domingo (48h)\n'
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    // Usar TextEncoder para garantizar UTF-8 correcto y BOM para Excel
+    const rows = [
+      'nombre,apellido,finDeSemanaPreferente,proforma',
+      'Jose,Castro,MIXTO,Estandar 48h (sin fin de semana)',
+      'Maria,Lozano,DOMINGO,Domingo regular',
+    ]
+    const content = rows.join('\r\n') + '\r\n'
+    const bom = new Uint8Array([0xEF, 0xBB, 0xBF])
+    const encoder = new TextEncoder()
+    const body = encoder.encode(content)
+    const blob = new Blob([bom, body], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url

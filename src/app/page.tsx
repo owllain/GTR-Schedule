@@ -60,8 +60,18 @@ export default function Home() {
             <h2 className="max-w-xl text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">Un panel de horarios con ritmo, contraste y menos ruido visual.</h2>
             <p className="mt-4 max-w-2xl text-slate-600">Aquí puedes revisar turnos, personal y proformas desde una sola vista con una navegación más clara.</p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <button onClick={() => setActiveTab('dashboard')} className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800">Abrir horarios <ArrowRight className="h-4 w-4" /></button>
-              <button onClick={() => setActiveTab('proformas')} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-teal-200 hover:bg-teal-50">Ver proformas</button>
+              <button
+                onClick={() => setActiveTab('dashboard')}
+                className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+              >
+                Abrir horarios <ArrowRight className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setActiveTab('proformas')}
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-teal-200 hover:bg-teal-50"
+              >
+                Ver proformas
+              </button>
             </div>
           </article>
 
@@ -91,20 +101,38 @@ export default function Home() {
         </section>
 
         <section className="grid gap-4 md:grid-cols-3 mb-6">
-          <article className="rounded-3xl bg-[#aa2d00] p-6 text-white shadow-sm">
+          {/* Horarios */}
+          <article className="rounded-3xl bg-[#aa2d00] p-6 text-white shadow-sm cursor-pointer" onClick={() => setActiveTab('dashboard')}>
             <p className="text-xs uppercase tracking-[0.2em] text-orange-100">Horarios</p>
             <h3 className="mt-3 text-2xl font-semibold">Gestiona turnos y revisa el calendario del mes</h3>
-            <p className="mt-2 text-sm text-orange-50/90">Aquí puedes generar, editar y exportar el horario para ver cómo queda cada semana.</p>
+            <p className="mt-2 text-sm text-orange-50/90">
+              El tab de <strong>Horarios</strong> es donde generás el calendario mensual de cada empleado.
+              Seleccionás el mes, ejecutás la generación automática según proformas, podés editar días
+              individualmente y exportar a Excel. Es el corazón del sistema.
+            </p>
           </article>
-          <article className="rounded-3xl bg-[#0a2e0e] p-6 text-white shadow-sm">
+
+          {/* Personal */}
+          <article className="rounded-3xl bg-[#0a2e0e] p-6 text-white shadow-sm cursor-pointer" onClick={() => setActiveTab('staff')}>
             <p className="text-xs uppercase tracking-[0.2em] text-emerald-100">Personal</p>
             <h3 className="mt-3 text-2xl font-semibold">Administra a tu equipo y carga CSV cuando sea necesario</h3>
-            <p className="mt-2 text-sm text-emerald-50/90">Mantén asignados los empleados, sus preferencias de fin de semana y sus proformas.</p>
+            <p className="mt-2 text-sm text-emerald-50/90">
+              En <strong>Personal</strong> registrás cada empleado con su nombre, preferencia de fin de semana
+              (sábado, domingo o mixto) y la proforma que le corresponde. Podés agregar de uno en uno o
+              importar masivamente desde un archivo CSV. Sin personal cargado, no hay horarios que generar.
+            </p>
           </article>
-          <article className="rounded-3xl bg-[#f5e9d4] p-6 text-slate-900 shadow-sm">
+
+          {/* Proformas */}
+          <article className="rounded-3xl bg-[#f5e9d4] p-6 text-slate-900 shadow-sm cursor-pointer" onClick={() => setActiveTab('proformas')}>
             <p className="text-xs uppercase tracking-[0.2em] text-slate-600">Proformas</p>
             <h3 className="mt-3 text-2xl font-semibold">Crea y reutiliza horarios estándar sin repetir trabajo</h3>
-            <p className="mt-2 text-sm text-slate-700">Las proformas ayudan a asignar rápidamente patrones de trabajo y evitar errores manuales.</p>
+            <p className="mt-2 text-sm text-slate-700">
+              Las <strong>proformas</strong> son plantillas de horario que definís una sola vez y asignás
+              a varios empleados. Por ejemplo: "Domingo regular" pone automáticamente L-Mi de 8-4pm,
+              J-V de 9-4pm y domingo de 8-6pm cada vez que generás el mes. Evitan el trabajo manual
+              repetitivo y aseguran consistencia en los turnos.
+            </p>
           </article>
         </section>
 
