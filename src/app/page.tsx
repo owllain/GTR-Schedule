@@ -6,7 +6,7 @@ import { StaffManager } from '@/components/schedule/staff-manager'
 import { ScheduleDashboard } from '@/components/schedule/schedule-dashboard'
 import { NovedadesManager } from '@/components/schedule/novedades-manager'
 import { ProformasManager } from '@/components/schedule/proformas-manager'
-import { Users, Calendar, AlertCircle, LayoutTemplate } from 'lucide-react'
+import { Users, Calendar, AlertCircle, LayoutTemplate, Sparkles, ShieldCheck, Clock3, ArrowRight } from 'lucide-react'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -36,7 +36,7 @@ export default function Home() {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-slate-900 tracking-tight">Gestor de Horarios - STAFF</h1>
-                <p className="text-xs text-slate-500">Legislación laboral de Costa Rica</p>
+                <p className="text-xs text-slate-500">Gestión de personal, proformas y turnos</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
@@ -51,6 +51,63 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="flex-1 max-w-[1800px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
+        <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] mb-6">
+          <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+            <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-teal-700">
+              <Sparkles className="h-3.5 w-3.5" />
+              Vista editorial, más clara
+            </p>
+            <h2 className="max-w-xl text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">Un panel de horarios con ritmo, contraste y menos ruido visual.</h2>
+            <p className="mt-4 max-w-2xl text-slate-600">Ahora el flujo combina tarjetas de apoyo, colores de marca y una jerarquía visual más limpia para que la información sea más fácil de leer en cada pestaña.</p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <button className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800">Abrir horarios <ArrowRight className="h-4 w-4" /></button>
+              <button className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-teal-200 hover:bg-teal-50">Ver proformas</button>
+            </div>
+          </article>
+
+          <article className="grid gap-4 rounded-3xl bg-[linear-gradient(135deg,#0f172a,#111827)] p-6 text-white shadow-sm sm:p-8">
+            <div className="flex items-center justify-between">
+              <span className="text-xs uppercase tracking-[0.24em] text-teal-100">Resumen rápido</span>
+              <ShieldCheck className="h-5 w-5 text-teal-200" />
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/8 p-4">
+              <p className="text-sm text-teal-100">Personal activo</p>
+              <p className="mt-1 text-3xl font-semibold">{staffCount}</p>
+              <p className="text-xs text-slate-200">Empleados disponibles para asignar turnos y novedades.</p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-white/8 p-4">
+                <Clock3 className="h-4 w-4 text-teal-200" />
+                <p className="mt-3 text-sm text-teal-100">Turnos</p>
+                <p className="text-xl font-semibold">48h / semana</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/8 p-4">
+                <Calendar className="h-4 w-4 text-teal-200" />
+                <p className="mt-3 text-sm text-teal-100">Calendario</p>
+                <p className="text-xl font-semibold">2024–2028</p>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section className="grid gap-4 md:grid-cols-3 mb-6">
+          <article className="rounded-3xl bg-[#aa2d00] p-6 text-white shadow-sm">
+            <p className="text-xs uppercase tracking-[0.2em] text-orange-100">Pulse visual</p>
+            <h3 className="mt-3 text-2xl font-semibold">Proformas listas para asignar</h3>
+            <p className="mt-2 text-sm text-orange-50/90">Mantén un flujo consistente entre el personal, los turnos y las novedades.</p>
+          </article>
+          <article className="rounded-3xl bg-[#0a2e0e] p-6 text-white shadow-sm">
+            <p className="text-xs uppercase tracking-[0.2em] text-emerald-100">Capa de apoyo</p>
+            <h3 className="mt-3 text-2xl font-semibold">Novedades y descanso en un solo lugar</h3>
+            <p className="mt-2 text-sm text-emerald-50/90">Las excepciones se ven más claras cuando el entorno también comunica prioridad.</p>
+          </article>
+          <article className="rounded-3xl bg-[#f5e9d4] p-6 text-slate-900 shadow-sm">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-600">Toque cálido</p>
+            <h3 className="mt-3 text-2xl font-semibold">Menos plantilla, más experiencia</h3>
+            <p className="mt-2 text-sm text-slate-700">El diseño ahora tiene bloques de color y contraste por secciones para evitar esa sensación de “plantilla IA”.</p>
+          </article>
+        </section>
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full max-w-xl grid-cols-4 h-auto bg-slate-100/80 p-1">
             <TabsTrigger value="dashboard" className="gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-teal-700 text-xs sm:text-sm">
@@ -72,19 +129,19 @@ export default function Home() {
           </TabsList>
 
           <TabsContent value="dashboard">
-            <ScheduleDashboard key={`dashboard-${refreshKey}`} onRefresh={handleRefresh} />
+            <ScheduleDashboard onRefresh={handleRefresh} />
           </TabsContent>
 
           <TabsContent value="staff">
-            <StaffManager key={`staff-${refreshKey}`} onRefresh={handleRefresh} />
+            <StaffManager onRefresh={handleRefresh} />
           </TabsContent>
 
           <TabsContent value="proformas">
-            <ProformasManager key={`proformas-${refreshKey}`} onRefresh={handleRefresh} />
+            <ProformasManager onRefresh={handleRefresh} />
           </TabsContent>
 
           <TabsContent value="novedades">
-            <NovedadesManager key={`novedades-${refreshKey}`} onRefresh={handleRefresh} />
+            <NovedadesManager onRefresh={handleRefresh} />
           </TabsContent>
         </Tabs>
       </main>

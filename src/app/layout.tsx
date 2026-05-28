@@ -15,15 +15,15 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Gestor de Horarios - STAFF",
-  description: "Gestor de Horarios del Personal conforme a la legislación laboral de Costa Rica",
-  keywords: ["horarios", "Costa Rica", "jornada laboral", "schedule", "staff", "gestor"],
+  description: "Gestor de horarios del personal para organizar turnos, proformas y novedades.",
+  keywords: ["horarios", "schedule", "staff", "gestor", "proformas"],
   authors: [{ name: "Alvaro Enrique Cascante Moraga" }],
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: "/icon.svg",
   },
   openGraph: {
     title: "Gestor de Horarios - STAFF",
-    description: "Gestor de Horarios del Personal - Costa Rica",
+    description: "Gestor de horarios del personal para organizar turnos y proformas.",
     type: "website",
   },
 };

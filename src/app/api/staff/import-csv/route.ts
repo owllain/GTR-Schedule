@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No se proporcionó archivo CSV' }, { status: 400 });
     }
 
-    const text = await file.text();
+    const text = (await file.text()).replace(/^\uFEFF/, '');
     const lines = text.split(/\r?\n/).filter(line => line.trim());
 
     if (lines.length === 0) {
@@ -58,8 +58,14 @@ export async function POST(request: NextRequest) {
       // Find proforma if specified
       let proformaId: string | null = null;
       if (proformaNombre) {
+        const normalizedFilter = normalizeText(proformaNombre);
         const proforma = await db.proforma.findFirst({
-          where: { nombre: { contains: proformaNombre, mode: 'insensitive' } },
+          where: {
+            OR: [
+              { nombre: { contains: proformaNombre, mode: 'insensitive' } },
+              { nombre: { contains: normalizedFilter, mode: 'insensitive' } },
+            ],
+          },
         });
         if (proforma) {
           proformaId = proforma.id;
@@ -96,15 +102,34 @@ function parseCSVLine(line: string): string[] {
 
   for (let i = 0; i < line.length; i++) {
     const char = line[i];
+
     if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === ',' && !inQuotes) {
-      result.push(current);
-      current = '';
-    } else {
-      current += char;
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
     }
+
+    if (char === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+      continue;
+    }
+
+    current += char;
   }
-  result.push(current);
+
+  result.push(current.trim());
   return result;
+}
+
+function normalizeText(value: string) {
+  return value
+    .normalize('NFKD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .trim();
 }

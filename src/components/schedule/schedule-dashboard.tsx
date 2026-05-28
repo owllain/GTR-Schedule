@@ -127,7 +127,7 @@ export function ScheduleDashboard({ onRefresh }: ScheduleDashboardProps) {
   }, [])
 
   useEffect(() => { fetchSchedule() }, [fetchSchedule])
-  useEffect(() => { fetchStaff() }, [fetchProformas] )
+  useEffect(() => { fetchStaff() }, [fetchStaff])
   useEffect(() => { fetchProformas() }, [fetchProformas])
 
   const handleGenerate = async (useBlank: boolean = true) => {
@@ -141,7 +141,7 @@ export function ScheduleDashboard({ onRefresh }: ScheduleDashboardProps) {
       const data = await res.json()
       if (res.ok) {
         toast({ title: 'Horario generado', description: data.message })
-        fetchSchedule()
+        await fetchSchedule()
         onRefresh()
       } else {
         toast({ title: 'Error', description: data.error, variant: 'destructive' })

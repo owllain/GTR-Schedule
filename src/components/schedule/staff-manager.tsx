@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
-import { Plus, Pencil, Trash2, User, Upload, FileText, LayoutTemplate } from 'lucide-react'
+import { Plus, Pencil, Trash2, User, Upload, FileText, LayoutTemplate, Download } from 'lucide-react'
 
 interface Proforma {
   id: string
@@ -220,6 +220,17 @@ export function StaffManager({ onRefresh }: StaffManagerProps) {
     }
   }
 
+  const handleDownloadTemplate = () => {
+    const csv = 'nombre,apellido,finDeSemanaPreferente,proforma\nJosé,Castro,MIXTO,Estándar 48h (sin fin de semana)\nMaría,Lozano,DOMINGO,Con Domingo (48h)\n'
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'plantilla_personal.csv'
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
   const resetForm = () => {
     setFormData({
       nombre: '',
@@ -252,6 +263,14 @@ export function StaffManager({ onRefresh }: StaffManagerProps) {
               ref={fileInputRef}
               onChange={handleCSVImport}
             />
+            <Button
+              variant="outline"
+              className="gap-2 border-dashed"
+              onClick={handleDownloadTemplate}
+            >
+              <Download className="w-4 h-4" />
+              Plantilla CSV
+            </Button>
             <Button
               variant="outline"
               className="gap-2 border-dashed"

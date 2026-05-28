@@ -259,20 +259,6 @@ export function ProformasManager({ onRefresh }: ProformasManagerProps) {
                 <DialogTitle>{editingProforma ? 'Editar Proforma' : 'Crear Proforma'}</DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-4">
-                {/* Quick load defaults */}
-                {!editingProforma && (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-slate-600">Cargar plantilla rápida:</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {defaultProformas.map((def, i) => (
-                        <Button key={i} variant="outline" size="sm" className="text-xs" onClick={() => handleLoadDefault(i)}>
-                          {def.nombre.split('(')[0].trim()}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
                 <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-2">
                     <Label>Nombre de la Proforma *</Label>

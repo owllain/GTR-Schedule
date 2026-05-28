@@ -1,9 +1,76 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
+const defaultProformas = [
+  {
+    nombre: 'Estándar 48h (sin fin de semana)',
+    descripcion: 'L-V 8:00-17:36, S-D descanso. Total: 48h',
+    entradas: [
+      { diaSemana: 0, horaEntrada: '', horaSalida: '', esDescanso: true },
+      { diaSemana: 1, horaEntrada: '08:00', horaSalida: '17:36', esDescanso: false },
+      { diaSemana: 2, horaEntrada: '08:00', horaSalida: '17:36', esDescanso: false },
+      { diaSemana: 3, horaEntrada: '08:00', horaSalida: '17:36', esDescanso: false },
+      { diaSemana: 4, horaEntrada: '08:00', horaSalida: '17:36', esDescanso: false },
+      { diaSemana: 5, horaEntrada: '08:00', horaSalida: '17:36', esDescanso: false },
+      { diaSemana: 6, horaEntrada: '', horaSalida: '', esDescanso: true },
+    ],
+  },
+  {
+    nombre: 'Con Sábado (48h)',
+    descripcion: 'L-V 8:00-15:36, S 8:00-18:00, D descanso. Total: 48h',
+    entradas: [
+      { diaSemana: 0, horaEntrada: '', horaSalida: '', esDescanso: true },
+      { diaSemana: 1, horaEntrada: '08:00', horaSalida: '15:36', esDescanso: false },
+      { diaSemana: 2, horaEntrada: '08:00', horaSalida: '15:36', esDescanso: false },
+      { diaSemana: 3, horaEntrada: '08:00', horaSalida: '15:36', esDescanso: false },
+      { diaSemana: 4, horaEntrada: '08:00', horaSalida: '15:36', esDescanso: false },
+      { diaSemana: 5, horaEntrada: '08:00', horaSalida: '15:36', esDescanso: false },
+      { diaSemana: 6, horaEntrada: '08:00', horaSalida: '18:00', esDescanso: false },
+    ],
+  },
+  {
+    nombre: 'Con Domingo (48h)',
+    descripcion: 'L-V 8:00-15:36, S descanso, D 8:00-18:00. Total: 48h',
+    entradas: [
+      { diaSemana: 0, horaEntrada: '08:00', horaSalida: '18:00', esDescanso: false },
+      { diaSemana: 1, horaEntrada: '08:00', horaSalida: '15:36', esDescanso: false },
+      { diaSemana: 2, horaEntrada: '08:00', horaSalida: '15:36', esDescanso: false },
+      { diaSemana: 3, horaEntrada: '08:00', horaSalida: '15:36', esDescanso: false },
+      { diaSemana: 4, horaEntrada: '08:00', horaSalida: '15:36', esDescanso: false },
+      { diaSemana: 5, horaEntrada: '08:00', horaSalida: '15:36', esDescanso: false },
+      { diaSemana: 6, horaEntrada: '', horaSalida: '', esDescanso: true },
+    ],
+  },
+];
+
+async function seedDefaultProformas() {
+  const count = await db.proforma.count();
+  if (count > 0) return;
+
+  await db.$transaction(
+    defaultProformas.map(proforma =>
+      db.proforma.create({
+        data: {
+          nombre: proforma.nombre,
+          descripcion: proforma.descripcion,
+          entradas: {
+            create: proforma.entradas.map(entry => ({
+              diaSemana: entry.diaSemana,
+              horaEntrada: entry.esDescanso ? '' : entry.horaEntrada,
+              horaSalida: entry.esDescanso ? '' : entry.horaSalida,
+              esDescanso: entry.esDescanso,
+            })),
+          },
+        },
+      })
+    )
+  );
+}
+
 // GET all proformas
 export async function GET() {
   try {
+    await seedDefaultProformas();
     const proformas = await db.proforma.findMany({
       include: { entradas: { orderBy: { diaSemana: 'asc' } }, _count: { select: { staff: true } } },
       orderBy: { nombre: 'asc' },
