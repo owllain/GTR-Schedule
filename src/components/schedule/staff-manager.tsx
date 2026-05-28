@@ -221,7 +221,7 @@ export function StaffManager({ onRefresh }: StaffManagerProps) {
   }
 
   const handleDownloadTemplate = () => {
-    const csv = 'nombre,apellido,finDeSemanaPreferente,proforma\nJosé,Castro,MIXTO,Estándar 48h (sin fin de semana)\nMaría,Lozano,DOMINGO,Con Domingo (48h)\n'
+    const csv = '\uFEFFnombre,apellido,finDeSemanaPreferente,proforma\nJosé,Castro,MIXTO,Estándar 48h (sin fin de semana)\nMaría,Lozano,DOMINGO,Con Domingo (48h)\n'
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')

@@ -55,13 +55,13 @@ export default function Home() {
           <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
             <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-teal-700">
               <Sparkles className="h-3.5 w-3.5" />
-              Vista editorial, más clara
+              Guía rápida
             </p>
             <h2 className="max-w-xl text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">Un panel de horarios con ritmo, contraste y menos ruido visual.</h2>
-            <p className="mt-4 max-w-2xl text-slate-600">Ahora el flujo combina tarjetas de apoyo, colores de marca y una jerarquía visual más limpia para que la información sea más fácil de leer en cada pestaña.</p>
+            <p className="mt-4 max-w-2xl text-slate-600">Aquí puedes revisar turnos, personal y proformas desde una sola vista con una navegación más clara.</p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <button className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800">Abrir horarios <ArrowRight className="h-4 w-4" /></button>
-              <button className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-teal-200 hover:bg-teal-50">Ver proformas</button>
+              <button onClick={() => setActiveTab('dashboard')} className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800">Abrir horarios <ArrowRight className="h-4 w-4" /></button>
+              <button onClick={() => setActiveTab('proformas')} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-teal-200 hover:bg-teal-50">Ver proformas</button>
             </div>
           </article>
 
@@ -92,19 +92,19 @@ export default function Home() {
 
         <section className="grid gap-4 md:grid-cols-3 mb-6">
           <article className="rounded-3xl bg-[#aa2d00] p-6 text-white shadow-sm">
-            <p className="text-xs uppercase tracking-[0.2em] text-orange-100">Pulse visual</p>
-            <h3 className="mt-3 text-2xl font-semibold">Proformas listas para asignar</h3>
-            <p className="mt-2 text-sm text-orange-50/90">Mantén un flujo consistente entre el personal, los turnos y las novedades.</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-orange-100">Horarios</p>
+            <h3 className="mt-3 text-2xl font-semibold">Gestiona turnos y revisa el calendario del mes</h3>
+            <p className="mt-2 text-sm text-orange-50/90">Aquí puedes generar, editar y exportar el horario para ver cómo queda cada semana.</p>
           </article>
           <article className="rounded-3xl bg-[#0a2e0e] p-6 text-white shadow-sm">
-            <p className="text-xs uppercase tracking-[0.2em] text-emerald-100">Capa de apoyo</p>
-            <h3 className="mt-3 text-2xl font-semibold">Novedades y descanso en un solo lugar</h3>
-            <p className="mt-2 text-sm text-emerald-50/90">Las excepciones se ven más claras cuando el entorno también comunica prioridad.</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-emerald-100">Personal</p>
+            <h3 className="mt-3 text-2xl font-semibold">Administra a tu equipo y carga CSV cuando sea necesario</h3>
+            <p className="mt-2 text-sm text-emerald-50/90">Mantén asignados los empleados, sus preferencias de fin de semana y sus proformas.</p>
           </article>
           <article className="rounded-3xl bg-[#f5e9d4] p-6 text-slate-900 shadow-sm">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-600">Toque cálido</p>
-            <h3 className="mt-3 text-2xl font-semibold">Menos plantilla, más experiencia</h3>
-            <p className="mt-2 text-sm text-slate-700">El diseño ahora tiene bloques de color y contraste por secciones para evitar esa sensación de “plantilla IA”.</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-600">Proformas</p>
+            <h3 className="mt-3 text-2xl font-semibold">Crea y reutiliza horarios estándar sin repetir trabajo</h3>
+            <p className="mt-2 text-sm text-slate-700">Las proformas ayudan a asignar rápidamente patrones de trabajo y evitar errores manuales.</p>
           </article>
         </section>
 
