@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
@@ -240,6 +241,8 @@ const defaultProformas = [
   },
 ]
 
+const requestedCoverageProformas = defaultProformas.filter(p => p.nombre.startsWith('Cobertura '))
+
 function calculateWeeklyHours(entradas: ProformaEntry[]): number {
   return entradas.reduce((total, e) => {
     if (e.esDescanso || !e.horaEntrada || !e.horaSalida) return total
@@ -256,6 +259,7 @@ export function ProformasManager({ onRefresh }: ProformasManagerProps) {
   const { toast } = useToast()
   const [proformas, setProformas] = useState<Proforma[]>([])
   const [loading, setLoading] = useState(true)
+  const [creatingRequested, setCreatingRequested] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingProforma, setEditingProforma] = useState<Proforma | null>(null)
   const [formData, setFormData] = useState({
@@ -341,6 +345,39 @@ export function ProformasManager({ onRefresh }: ProformasManagerProps) {
     })
   }
 
+  const handleCreateRequestedProformas = async () => {
+    setCreatingRequested(true)
+    try {
+      const existingNames = new Set(proformas.map(p => p.nombre.trim().toLowerCase()))
+      const missing = requestedCoverageProformas.filter(p => !existingNames.has(p.nombre.trim().toLowerCase()))
+
+      if (missing.length === 0) {
+        toast({ title: 'Sin cambios', description: 'Las proformas de cobertura ya existen' })
+        return
+      }
+
+      for (const p of missing) {
+        await fetch('/api/proformas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nombre: p.nombre,
+            descripcion: p.descripcion,
+            entradas: p.entradas,
+          }),
+        })
+      }
+
+      await fetchProformas()
+      onRefresh()
+      toast({ title: 'Proformas agregadas', description: `Se crearon ${missing.length} proformas de cobertura` })
+    } catch {
+      toast({ title: 'Error', description: 'No se pudieron crear las proformas solicitadas', variant: 'destructive' })
+    } finally {
+      setCreatingRequested(false)
+    }
+  }
+
   const resetForm = () => {
     setFormData({
       nombre: '',
@@ -380,22 +417,49 @@ export function ProformasManager({ onRefresh }: ProformasManagerProps) {
               Plantillas de horario predefinidas para asignar al personal
             </p>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={(open) => {
-            setDialogOpen(open)
-            if (!open) resetForm()
-          }}>
-            <DialogTrigger asChild>
-              <Button className="bg-teal-600 hover:bg-teal-700 gap-2 shadow-sm">
-                <Plus className="w-4 h-4" />
-                Crear Proforma
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="w-[min(96vw,1100px)] max-w-none max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={handleCreateRequestedProformas}
+              disabled={creatingRequested}
+              className="gap-2"
+            >
+              <LayoutTemplate className="w-4 h-4" />
+              {creatingRequested ? 'Agregando...' : 'Agregar proformas solicitadas'}
+            </Button>
+            <Dialog open={dialogOpen} onOpenChange={(open) => {
+              setDialogOpen(open)
+              if (!open) resetForm()
+            }}>
+              <DialogTrigger asChild>
+                <Button className="bg-teal-600 hover:bg-teal-700 gap-2 shadow-sm">
+                  <Plus className="w-4 h-4" />
+                  Crear Proforma
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="w-[96vw] max-w-[1100px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editingProforma ? 'Editar Proforma' : 'Crear Proforma'}</DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-1 gap-4">
+                  {!editingProforma && (
+                    <div className="space-y-2">
+                      <Label>Plantilla rápida (opcional)</Label>
+                      <Select onValueChange={value => handleLoadDefault(Number(value))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccionar plantilla..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {defaultProformas.map((p, idx) => (
+                            <SelectItem key={p.nombre} value={String(idx)}>
+                              {p.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <Label>Nombre de la Proforma *</Label>
                     <Input value={formData.nombre} onChange={e => setFormData(p => ({ ...p, nombre: e.target.value }))} placeholder="Ej: Estándar 48h" />
@@ -422,7 +486,7 @@ export function ProformasManager({ onRefresh }: ProformasManagerProps) {
                       if (!entry) return null
                       const isWeekend = dow === 0 || dow === 6
                       return (
-                        <div key={dow} className={`flex items-center gap-3 p-2 rounded-lg ${isWeekend ? 'bg-amber-50/50' : 'bg-slate-50/50'}`}>
+                        <div key={dow} className={`flex flex-wrap items-center gap-3 p-2 rounded-lg ${isWeekend ? 'bg-amber-50/50' : 'bg-slate-50/50'}`}>
                           <span className={`w-20 text-sm font-medium ${isWeekend ? 'text-amber-700' : 'text-slate-700'}`}>
                             {dayShortNames[dow]}
                           </span>
@@ -440,7 +504,7 @@ export function ProformasManager({ onRefresh }: ProformasManagerProps) {
                             <span className="text-xs text-slate-500">{entry.esDescanso ? 'Descanso' : 'Laboral'}</span>
                           </div>
                           {!entry.esDescanso && (
-                            <div className="flex items-center gap-2 ml-auto">
+                            <div className="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
                               <Input type="time" value={entry.horaEntrada} onChange={e => updateEntry(dow, 'horaEntrada', e.target.value)} className="w-28 text-sm" />
                               <span className="text-slate-400">a</span>
                               <Input type="time" value={entry.horaSalida} onChange={e => updateEntry(dow, 'horaSalida', e.target.value)} className="w-28 text-sm" />
@@ -473,8 +537,9 @@ export function ProformasManager({ onRefresh }: ProformasManagerProps) {
                   </Button>
                 </div>
               </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (

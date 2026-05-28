@@ -32,6 +32,21 @@ export interface NovedadInfo {
   description?: string;
 }
 
+const VACATION_HOURS_REGEX = /\[VAC_HOURS:(4|8)\]/;
+
+export function parseVacationHoursFromDescription(description?: string): number {
+  if (!description) return 8;
+  const match = description.match(VACATION_HOURS_REGEX);
+  if (!match) return 8;
+  return Number(match[1]) === 4 ? 4 : 8;
+}
+
+export function stripVacationMetadata(description?: string): string | undefined {
+  if (!description) return undefined;
+  const cleaned = description.replace(VACATION_HOURS_REGEX, '').trim();
+  return cleaned || undefined;
+}
+
 export interface ScheduleEntryInput {
   staffId: string;
   date: string;
@@ -280,14 +295,18 @@ export function generateSchedule(
       const novedad = getNovedadForDate(dateStr, novedades.filter(n => n.staffId === s.id));
 
       if (novedad) {
+        const vacationHours = novedad.type === 'VACACION'
+          ? parseVacationHoursFromDescription(novedad.description)
+          : 0;
+        const cleanedNotes = stripVacationMetadata(novedad.description);
         entries.push({
           staffId: s.id,
           date: dateStr,
           entryTime: '',
           exitTime: '',
-          hours: 0,
+          hours: vacationHours,
           type: novedad.type as EntryType,
-          notes: novedad.description || undefined,
+          notes: cleanedNotes,
           isWeekend,
           isManual: false,
         });

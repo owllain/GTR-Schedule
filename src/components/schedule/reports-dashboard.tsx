@@ -95,7 +95,7 @@ const MONTHS = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ]
 
-const YEARS = Array.from({ length: 5 }, (_, i) => 2024 + i)
+const YEARS = Array.from({ length: 8 }, (_, i) => 2026 + i)
 
 const typeLabels: Record<string, string> = {
   NORMAL: 'Normal', DESCANSO: 'Descanso', VACACION: 'Vacación',
@@ -139,6 +139,27 @@ function exportCSV(filename: string, headers: string[], rows: (string | number)[
   const a = document.createElement('a')
   a.href = url
   a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+async function exportReportXlsx(payload: Record<string, string | number>, fallbackFilename: string) {
+  const res = await fetch('/api/reports/export', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error((data as { error?: string }).error || 'No se pudo exportar XLSX')
+  }
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  const disposition = res.headers.get('content-disposition')
+  const filenameMatch = disposition?.match(/filename="?([^"]+)"?/)
+  a.download = filenameMatch ? filenameMatch[1] : fallbackFilename
   a.click()
   URL.revokeObjectURL(url)
 }
@@ -250,39 +271,54 @@ export function ReportsDashboard() {
 
   const exportMonth = () => {
     if (!monthReport) return
-    exportCSV(
-      `reporte_mensual_${MONTHS[month - 1]}_${year}.csv`,
-      ['Empleado', 'Proforma', 'FDS', 'Total Horas', 'Días Laborados', 'Descanso', 'Vacación', 'Incapacidad', 'Licencia', 'Permiso', 'Feriado', 'Manuales', 'Semanas OK'],
-      monthReport.staffReports.map(s => [
-        s.nombre, s.proforma, fdsLabel[s.finDeSemana] ?? s.finDeSemana,
-        s.totalHoras, s.diasLaborados, s.diasDescanso, s.diasVacacion,
-        s.diasIncapacidad, s.diasLicencia, s.diasPermiso, s.diasFeriado,
-        s.diasManuales, `${s.semanasCumplen}/${s.totalSemanas}`,
-      ])
-    )
+    exportReportXlsx(
+      { type: 'month', year, month },
+      `reporte_mensual_${MONTHS[month - 1]}_${year}.xlsx`
+    ).catch(() => {
+      exportCSV(
+        `reporte_mensual_${MONTHS[month - 1]}_${year}.csv`,
+        ['Empleado', 'Proforma', 'FDS', 'Total Horas', 'Días Laborados', 'Descanso', 'Vacación', 'Incapacidad', 'Licencia', 'Permiso', 'Feriado', 'Manuales', 'Semanas OK'],
+        monthReport.staffReports.map(s => [
+          s.nombre, s.proforma, fdsLabel[s.finDeSemana] ?? s.finDeSemana,
+          s.totalHoras, s.diasLaborados, s.diasDescanso, s.diasVacacion,
+          s.diasIncapacidad, s.diasLicencia, s.diasPermiso, s.diasFeriado,
+          s.diasManuales, `${s.semanasCumplen}/${s.totalSemanas}`,
+        ])
+      )
+    })
   }
 
   const exportStaff = () => {
-    if (!staffReport) return
-    exportCSV(
-      `historial_${staffReport.staff.nombre.replace(/ /g, '_')}.csv`,
-      ['Fecha', 'Entrada', 'Salida', 'Horas', 'Tipo', 'Manual', 'Notas'],
-      staffReport.detalle.map(d => [
-        d.fecha, d.entrada, d.salida, d.horas,
-        typeLabels[d.tipo] ?? d.tipo, d.manual ? 'Sí' : 'No', d.notas ?? '',
-      ])
-    )
+    if (!staffReport || !selectedStaff) return
+    exportReportXlsx(
+      { type: 'staff', staffId: selectedStaff, startDate, endDate },
+      `historial_${staffReport.staff.nombre.replace(/ /g, '_')}.xlsx`
+    ).catch(() => {
+      exportCSV(
+        `historial_${staffReport.staff.nombre.replace(/ /g, '_')}.csv`,
+        ['Fecha', 'Entrada', 'Salida', 'Horas', 'Tipo', 'Manual', 'Notas'],
+        staffReport.detalle.map(d => [
+          d.fecha, d.entrada, d.salida, d.horas,
+          typeLabels[d.tipo] ?? d.tipo, d.manual ? 'Sí' : 'No', d.notas ?? '',
+        ])
+      )
+    })
   }
 
   const exportComparative = () => {
     if (!comparativeReport) return
-    const headers = ['Empleado', 'Proforma', 'Total Horas', 'Meta', 'Cumplimiento %',
-      ...comparativeReport.weeks.map(w => `Sem ${w}`)]
-    const rows = comparativeReport.comparative.map(c => [
-      c.nombre, c.proforma, c.totalHoras, c.metaMensual, `${c.cumplimiento}%`,
-      ...comparativeReport.weeks.map(w => c.weekData.find(wd => wd.semana === w)?.horas ?? 0),
-    ])
-    exportCSV(`comparativo_${MONTHS[month - 1]}_${year}.csv`, headers, rows)
+    exportReportXlsx(
+      { type: 'comparative', year, month },
+      `comparativo_${MONTHS[month - 1]}_${year}.xlsx`
+    ).catch(() => {
+      const headers = ['Empleado', 'Proforma', 'Total Horas', 'Meta', 'Cumplimiento %',
+        ...comparativeReport.weeks.map(w => `Sem ${w}`)]
+      const rows = comparativeReport.comparative.map(c => [
+        c.nombre, c.proforma, c.totalHoras, c.metaMensual, `${c.cumplimiento}%`,
+        ...comparativeReport.weeks.map(w => c.weekData.find(wd => wd.semana === w)?.horas ?? 0),
+      ])
+      exportCSV(`comparativo_${MONTHS[month - 1]}_${year}.csv`, headers, rows)
+    })
   }
 
   // ── Render ───────────────────────────────────────────────────
@@ -403,7 +439,7 @@ export function ReportsDashboard() {
               {MONTHS[month - 1]} {year} · {monthReport.staffReports.length} empleados
             </h3>
             <Button variant="outline" size="sm" onClick={exportMonth} className="gap-2">
-              <Download className="w-4 h-4" /> Exportar CSV
+              <Download className="w-4 h-4" /> Exportar XLSX
             </Button>
           </div>
 
@@ -565,7 +601,7 @@ export function ReportsDashboard() {
               <p className="text-sm text-slate-500">{staffReport.staff.proforma} · {fdsLabel[staffReport.staff.finDeSemana]}</p>
             </div>
             <Button variant="outline" size="sm" onClick={exportStaff} className="gap-2">
-              <Download className="w-4 h-4" /> Exportar CSV
+              <Download className="w-4 h-4" /> Exportar XLSX
             </Button>
           </div>
 
@@ -684,7 +720,7 @@ export function ReportsDashboard() {
               Cumplimiento 48h — {MONTHS[month - 1]} {year}
             </h3>
             <Button variant="outline" size="sm" onClick={exportComparative} className="gap-2">
-              <Download className="w-4 h-4" /> Exportar CSV
+              <Download className="w-4 h-4" /> Exportar XLSX
             </Button>
           </div>
 

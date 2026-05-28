@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { calculateHours, WEEKLY_TARGET_HOURS } from '@/lib/schedule-generator';
+import { calculateHours, parseVacationHoursFromDescription, WEEKLY_TARGET_HOURS } from '@/lib/schedule-generator';
 
 // GET schedule entries for a given month
 export async function GET(request: NextRequest) {
@@ -87,7 +87,10 @@ export async function PUT(request: NextRequest) {
     const newExitTime = exitTime !== undefined ? exitTime : existing.exitTime;
     const newType = type ?? existing.type;
 
-    if (newType === 'DESCANSO' || newType === 'VACACION' || newType === 'INCAPACIDAD' || newType === 'LICENCIA' || newType === 'FERIADO' || newType === 'PERMISO') {
+    if (newType === 'VACACION') {
+      const vacationHours = parseVacationHoursFromDescription(notes ?? existing.notes ?? undefined);
+      hours = vacationHours;
+    } else if (newType === 'DESCANSO' || newType === 'INCAPACIDAD' || newType === 'LICENCIA' || newType === 'FERIADO' || newType === 'PERMISO') {
       hours = 0;
     } else if (newEntryTime && newExitTime) {
       hours = calculateHours(newEntryTime, newExitTime);

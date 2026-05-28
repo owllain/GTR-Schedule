@@ -61,7 +61,7 @@ async function handleMonthReport(params: URLSearchParams) {
     const myEntries = entries.filter((e) => e.staffId === s.id);
 
     const totalHours = myEntries.filter((e) => e.hours > 0).reduce((sum, e) => sum + e.hours, 0);
-    const diasLaborados = myEntries.filter((e) => e.type === 'NORMAL' && e.hours > 0).length;
+    const diasLaborados = myEntries.filter((e) => (e.type === 'NORMAL' || e.type === 'VACACION') && e.hours > 0).length;
     const diasDescanso = myEntries.filter((e) => e.type === 'DESCANSO').length;
     const diasVacacion = myEntries.filter((e) => e.type === 'VACACION').length;
     const diasIncapacidad = myEntries.filter((e) => e.type === 'INCAPACIDAD').length;
@@ -149,7 +149,7 @@ async function handleStaffReport(params: URLSearchParams) {
     if (!monthMap.has(ym)) monthMap.set(ym, { horas: 0, laborados: 0, descanso: 0, novedades: 0, manuales: 0 });
     const m = monthMap.get(ym)!;
     m.horas += e.hours;
-    if (e.type === 'NORMAL' && e.hours > 0) m.laborados += 1;
+    if ((e.type === 'NORMAL' || e.type === 'VACACION') && e.hours > 0) m.laborados += 1;
     if (e.type === 'DESCANSO') m.descanso += 1;
     if (e.type !== 'NORMAL' && e.type !== 'DESCANSO') m.novedades += 1;
     if (e.isManual) m.manuales += 1;
@@ -167,7 +167,7 @@ async function handleStaffReport(params: URLSearchParams) {
     }));
 
   const totalHoras = entries.filter((e) => e.hours > 0).reduce((sum, e) => sum + e.hours, 0);
-  const totalLaborados = entries.filter((e) => e.type === 'NORMAL' && e.hours > 0).length;
+  const totalLaborados = entries.filter((e) => (e.type === 'NORMAL' || e.type === 'VACACION') && e.hours > 0).length;
   const totalNovedades = entries.filter((e) => e.type !== 'NORMAL' && e.type !== 'DESCANSO').length;
 
   // Day-by-day detail

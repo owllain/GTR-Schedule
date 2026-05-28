@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
+function withVacationMetadata(type: string, description: string | undefined, vacationHours: unknown): string | null {
+  const base = (description || '').trim();
+  if (type !== 'VACACION') return base || null;
+  const normalizedHours = Number(vacationHours) === 4 ? 4 : 8;
+  const marker = `[VAC_HOURS:${normalizedHours}]`;
+  return `${marker}${base ? ` ${base}` : ''}`;
+}
+
 // GET all novedades
 export async function GET(request: NextRequest) {
   try {
@@ -39,7 +47,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { staffId, startDate, endDate, type, description } = body;
+    const { staffId, startDate, endDate, type, description, vacationHours } = body;
 
     if (!staffId || !startDate || !endDate || !type) {
       return NextResponse.json({ error: 'Staff, fecha inicio, fecha fin y tipo son requeridos' }, { status: 400 });
@@ -51,7 +59,7 @@ export async function POST(request: NextRequest) {
         startDate,
         endDate,
         type,
-        description: description || null,
+        description: withVacationMetadata(type, description, vacationHours),
       },
       include: { staff: true },
     });

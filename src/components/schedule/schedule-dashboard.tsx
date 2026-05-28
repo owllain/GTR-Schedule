@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, type DragEvent } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -12,7 +12,7 @@ import { Switch } from '@/components/ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useToast } from '@/hooks/use-toast'
-import { CalendarDays, Download, RefreshCw, Clock, Edit2, ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, LayoutTemplate } from 'lucide-react'
+import { CalendarDays, Download, RefreshCw, Clock, Edit2, ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, LayoutTemplate, Move, Wand2 } from 'lucide-react'
 
 interface Proforma {
   id: string
@@ -79,6 +79,34 @@ const typeColors: Record<string, string> = {
 const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
+interface PlannerTemplate {
+  id: string
+  label: string
+  type: string
+  entryTime: string
+  exitTime: string
+  notes?: string
+}
+
+const plannerTemplates: PlannerTemplate[] = [
+  { id: 'normal-84', label: '08:00-16:00', type: 'NORMAL', entryTime: '08:00', exitTime: '16:00' },
+  { id: 'normal-94', label: '09:00-16:00', type: 'NORMAL', entryTime: '09:00', exitTime: '16:00' },
+  { id: 'normal-86', label: '08:00-18:00', type: 'NORMAL', entryTime: '08:00', exitTime: '18:00' },
+  { id: 'normal-96', label: '09:00-18:00', type: 'NORMAL', entryTime: '09:00', exitTime: '18:00' },
+  { id: 'descanso', label: 'Descanso', type: 'DESCANSO', entryTime: '', exitTime: '' },
+  { id: 'vac-8h', label: 'Vacación 8h', type: 'VACACION', entryTime: '', exitTime: '', notes: '[VAC_HOURS:8] Vacación día completo' },
+  { id: 'vac-4h', label: 'Vacación 4h', type: 'VACACION', entryTime: '', exitTime: '', notes: '[VAC_HOURS:4] Vacación medio día' },
+]
+
+function getWeekNumber(dateStr: string): number {
+  const date = new Date(dateStr + 'T12:00:00')
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  const dayNum = d.getUTCDay() || 7
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum)
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
+}
+
 export function ScheduleDashboard({ onRefresh }: ScheduleDashboardProps) {
   const { toast } = useToast()
   const now = new Date()
@@ -95,6 +123,10 @@ export function ScheduleDashboard({ onRefresh }: ScheduleDashboardProps) {
   const [editForm, setEditForm] = useState({ entryTime: '', exitTime: '', type: 'NORMAL', notes: '' })
   const [bulkEditStaff, setBulkEditStaff] = useState<string | null>(null)
   const [bulkProformaId, setBulkProformaId] = useState('')
+  const [selectedWeek, setSelectedWeek] = useState<string>('')
+  const [smartGroup, setSmartGroup] = useState<'ALL' | 'MIXTO' | 'SABADO' | 'DOMINGO'>('ALL')
+  const [smartOnlyWithoutProforma, setSmartOnlyWithoutProforma] = useState(true)
+  const [smartProformaId, setSmartProformaId] = useState('')
 
   const fetchSchedule = useCallback(async () => {
     setLoading(true)
@@ -288,6 +320,100 @@ export function ScheduleDashboard({ onRefresh }: ScheduleDashboardProps) {
     }
   }
 
+  const weekOptions = Array.from(new Set(entries.map(e => getWeekNumber(e.date)))).sort((a, b) => a - b)
+
+  useEffect(() => {
+    if (!selectedWeek && weekOptions.length > 0) setSelectedWeek(String(weekOptions[0]))
+    if (selectedWeek && !weekOptions.includes(Number(selectedWeek)) && weekOptions.length > 0) {
+      setSelectedWeek(String(weekOptions[0]))
+    }
+  }, [selectedWeek, weekOptions])
+
+  const applyTemplateToEntry = async (entry: ScheduleEntry, template: PlannerTemplate) => {
+    const isNonWorking = template.type !== 'NORMAL'
+    try {
+      const res = await fetch('/api/schedule', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: entry.id,
+          entryTime: isNonWorking ? '' : template.entryTime,
+          exitTime: isNonWorking ? '' : template.exitTime,
+          type: template.type,
+          notes: template.notes || '',
+        }),
+      })
+      if (!res.ok) throw new Error('No se pudo actualizar')
+      await fetchSchedule()
+      toast({ title: 'Planner actualizado', description: `${entry.staff.nombre} ${entry.staff.apellido} · ${template.label}` })
+    } catch {
+      toast({ title: 'Error', description: 'No se pudo aplicar la plantilla en el planner', variant: 'destructive' })
+    }
+  }
+
+  const handleDropTemplate = async (entry: ScheduleEntry, event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    const raw = event.dataTransfer.getData('application/json')
+    if (!raw) return
+    const template = JSON.parse(raw) as PlannerTemplate
+    await applyTemplateToEntry(entry, template)
+  }
+
+  const handleSmartAssign = async () => {
+    if (!smartProformaId) {
+      toast({ title: 'Error', description: 'Seleccione una proforma para asignación inteligente', variant: 'destructive' })
+      return
+    }
+    const selectedProforma = proformas.find(p => p.id === smartProformaId)
+    if (!selectedProforma) return
+
+    const targetStaff = staffList.filter(s => {
+      const groupMatch = smartGroup === 'ALL' || s.finDeSemanaPreferente === smartGroup
+      const proformaMatch = !smartOnlyWithoutProforma || !s.proformaId
+      return groupMatch && proformaMatch
+    })
+
+    if (targetStaff.length === 0) {
+      toast({ title: 'Sin coincidencias', description: 'No hay personal que cumpla el filtro inteligente' })
+      return
+    }
+
+    let updatedEntries = 0
+    for (const staff of targetStaff) {
+      await fetch('/api/staff', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: staff.id, proformaId: smartProformaId }),
+      })
+
+      const staffEntries = entries.filter(e => e.staffId === staff.id && e.type === 'NORMAL')
+      for (const entry of staffEntries) {
+        const dow = new Date(entry.date + 'T12:00:00').getDay()
+        const pe = selectedProforma.entradas.find(x => x.diaSemana === dow)
+        if (!pe) continue
+        await fetch('/api/schedule', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: entry.id,
+            entryTime: pe.esDescanso ? '' : pe.horaEntrada,
+            exitTime: pe.esDescanso ? '' : pe.horaSalida,
+            type: pe.esDescanso ? 'DESCANSO' : 'NORMAL',
+            notes: pe.esDescanso ? 'Según proforma inteligente' : '',
+          }),
+        })
+        updatedEntries++
+      }
+    }
+
+    await fetchStaff()
+    await fetchSchedule()
+    toast({
+      title: 'Asignación inteligente completada',
+      description: `${targetStaff.length} colaboradores actualizados y ${updatedEntries} jornadas ajustadas`,
+    })
+  }
+
   // Build calendar data
   const daysInMonth = new Date(year, month, 0).getDate()
   const entryMap = new Map<string, Map<string, ScheduleEntry>>()
@@ -316,6 +442,14 @@ export function ScheduleDashboard({ onRefresh }: ScheduleDashboardProps) {
     else setMonth(m => m + 1)
   }
 
+  const plannerWeekEntries = entries.filter(e => getWeekNumber(e.date) === Number(selectedWeek))
+  const plannerDates = Array.from(new Set(plannerWeekEntries.map(e => e.date))).sort()
+  const plannerMap = new Map<string, Map<string, ScheduleEntry>>()
+  for (const e of plannerWeekEntries) {
+    if (!plannerMap.has(e.staffId)) plannerMap.set(e.staffId, new Map())
+    plannerMap.get(e.staffId)!.set(e.date, e)
+  }
+
   return (
     <div className="space-y-6">
       {/* Controls */}
@@ -340,7 +474,7 @@ export function ScheduleDashboard({ onRefresh }: ScheduleDashboardProps) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {[2024, 2025, 2026, 2027, 2028].map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                    {[2026, 2027, 2028, 2029, 2030, 2031, 2032, 2033].map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -392,6 +526,41 @@ export function ScheduleDashboard({ onRefresh }: ScheduleDashboardProps) {
               </Select>
               <Button size="sm" onClick={handleApplyProforma} disabled={!bulkEditStaff || !bulkProformaId} className="bg-violet-600 hover:bg-violet-700">
                 Aplicar
+              </Button>
+            </div>
+          )}
+
+          {staffList.length > 0 && entries.length > 0 && proformas.length > 0 && (
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
+              <Wand2 className="w-4 h-4 text-teal-600" />
+              <span className="text-slate-600 font-medium">Plantillas por área/cargo (asignación inteligente):</span>
+              <Select value={smartGroup} onValueChange={v => setSmartGroup(v as 'ALL' | 'MIXTO' | 'SABADO' | 'DOMINGO')}>
+                <SelectTrigger className="w-[220px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Todos los segmentos</SelectItem>
+                  <SelectItem value="MIXTO">Área Mixto (rotación)</SelectItem>
+                  <SelectItem value="SABADO">Cargo Sábado</SelectItem>
+                  <SelectItem value="DOMINGO">Cargo Domingo</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={smartProformaId} onValueChange={setSmartProformaId}>
+                <SelectTrigger className="w-[250px]">
+                  <SelectValue placeholder="Proforma objetivo..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {proformas.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex items-center gap-2">
+                <Switch checked={smartOnlyWithoutProforma} onCheckedChange={setSmartOnlyWithoutProforma} />
+                <span className="text-xs text-slate-500">Solo sin proforma</span>
+              </div>
+              <Button size="sm" className="bg-teal-600 hover:bg-teal-700" onClick={handleSmartAssign} disabled={!smartProformaId}>
+                Asignar inteligente
               </Button>
             </div>
           )}
@@ -467,6 +636,86 @@ export function ScheduleDashboard({ onRefresh }: ScheduleDashboardProps) {
                   })}
                 </TableBody>
               </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Weekly Planner DnD */}
+      {staffList.length > 0 && entries.length > 0 && (
+        <Card className="border-slate-200/80 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Move className="w-5 h-5 text-teal-600" />
+              Planner Semanal (drag-and-drop)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <Select value={selectedWeek} onValueChange={setSelectedWeek}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Semana..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {weekOptions.map(w => (
+                    <SelectItem key={w} value={String(w)}>Semana {w}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="text-xs text-slate-500">Arrastra una plantilla y suéltala sobre una celda de empleado.</span>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {plannerTemplates.map(t => (
+                <div
+                  key={t.id}
+                  draggable
+                  onDragStart={e => e.dataTransfer.setData('application/json', JSON.stringify(t))}
+                  className="px-2.5 py-1.5 text-xs rounded-md border bg-white cursor-grab active:cursor-grabbing hover:border-teal-300"
+                >
+                  {t.label}
+                </div>
+              ))}
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-50">
+                    <th className="text-left p-2 border">Empleado</th>
+                    {plannerDates.map(date => {
+                      const dow = dayNames[new Date(date + 'T12:00:00').getDay()]
+                      return <th key={date} className="text-center p-2 border min-w-[110px]">{dow} {date.slice(-2)}</th>
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {staffList.map(s => (
+                    <tr key={s.id}>
+                      <td className="p-2 border font-medium bg-white sticky left-0">{s.nombre} {s.apellido}</td>
+                      {plannerDates.map(date => {
+                        const entry = plannerMap.get(s.id)?.get(date)
+                        return (
+                          <td
+                            key={`${s.id}-${date}`}
+                            className="p-1 border text-center align-middle"
+                            onDragOver={e => e.preventDefault()}
+                            onDrop={e => entry && handleDropTemplate(entry, e)}
+                          >
+                            {entry ? (
+                              <div className={`rounded px-1 py-1 ${typeColors[entry.type] || 'bg-slate-50'}`}>
+                                {entry.type === 'NORMAL' && entry.entryTime && entry.exitTime ? `${entry.entryTime}-${entry.exitTime}` : (typeLabels[entry.type] || entry.type)}
+                              </div>
+                            ) : (
+                              <span className="text-slate-300">-</span>
+                            )}
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </CardContent>
         </Card>

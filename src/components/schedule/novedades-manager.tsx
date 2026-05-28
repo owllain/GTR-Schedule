@@ -48,6 +48,16 @@ const typeColors: Record<string, string> = {
   FERIADO: 'bg-violet-100 text-violet-800 border-violet-200',
 }
 
+function parseVacationHours(description: string | null): number {
+  if (!description) return 8
+  return description.includes('[VAC_HOURS:4]') ? 4 : 8
+}
+
+function cleanVacationDescription(description: string | null): string {
+  if (!description) return ''
+  return description.replace(/\[VAC_HOURS:(4|8)\]/, '').trim()
+}
+
 export function NovedadesManager({ onRefresh }: NovedadesManagerProps) {
   const { toast } = useToast()
   const [novedades, setNovedades] = useState<Novedad[]>([])
@@ -59,6 +69,7 @@ export function NovedadesManager({ onRefresh }: NovedadesManagerProps) {
     startDate: '',
     endDate: '',
     type: 'VACACION',
+    vacationHours: 8,
     description: '',
   })
 
@@ -139,6 +150,7 @@ export function NovedadesManager({ onRefresh }: NovedadesManagerProps) {
       startDate: '',
       endDate: '',
       type: 'VACACION',
+      vacationHours: 8,
       description: '',
     })
   }
@@ -200,6 +212,19 @@ export function NovedadesManager({ onRefresh }: NovedadesManagerProps) {
                   </Select>
                 </div>
 
+                {formData.type === 'VACACION' && (
+                  <div className="space-y-2">
+                    <Label>Duración por día de vacaciones</Label>
+                    <Select value={String(formData.vacationHours)} onValueChange={v => setFormData(p => ({ ...p, vacationHours: Number(v) }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="8">Día completo (8h)</SelectItem>
+                        <SelectItem value="4">Medio día (4h)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Fecha Inicio *</Label>
@@ -217,6 +242,11 @@ export function NovedadesManager({ onRefresh }: NovedadesManagerProps) {
                       <Calendar className="w-4 h-4 inline mr-1" />
                       Duración: <span className="font-bold">{calculateDays(formData.startDate, formData.endDate)} día(s)</span>
                     </p>
+                    {formData.type === 'VACACION' && (
+                      <p className="text-xs text-amber-700 mt-1">
+                        Se contabilizarán {formData.vacationHours}h por cada día de vacaciones.
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -270,7 +300,12 @@ export function NovedadesManager({ onRefresh }: NovedadesManagerProps) {
                       <TableCell>{n.startDate}</TableCell>
                       <TableCell>{n.endDate}</TableCell>
                       <TableCell className="text-center">{calculateDays(n.startDate, n.endDate)}</TableCell>
-                      <TableCell className="hidden md:table-cell text-sm text-slate-600">{n.description || '-'}</TableCell>
+                      <TableCell className="hidden md:table-cell text-sm text-slate-600">
+                        {n.type === 'VACACION'
+                          ? `${parseVacationHours(n.description)}h/día${cleanVacationDescription(n.description) ? ` · ${cleanVacationDescription(n.description)}` : ''}`
+                          : (n.description || '-')
+                        }
+                      </TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700" onClick={() => handleDelete(n.id)}>
                           <Trash2 className="w-3.5 h-3.5" />
